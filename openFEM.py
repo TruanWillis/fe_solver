@@ -3,7 +3,7 @@ import numpy as np
 element = np.array([[0,0], [20,0], [0,30]])
 
 class cst_element:
-    def __init__(self, x1, x2, x3, y1, y2, y3, E, v, t):
+    def __init__(self, x1, x2, x3, y1, y2, y3, E, v, t, node_list):
         b1 = y2 - y3                                                
         b2 = y3 - y1
         b3 = y1 - y2
@@ -39,6 +39,29 @@ class cst_element:
         k = np.matmul(Bt, self.D)
         self.K = np.matmul(k, self.B)
         self.K = self.K * self.A * t
+        
+        self.K_pos = np.zeros((6, 6), dtype=object)
+        count_1 = 0
+        for n1 in node_list:
+            count_2 = 0
+            for n2 in node_list:
+                self.K_pos[count_1][count_2] = str(n1) + str(n2)
+                self.K_pos[count_1][count_2 + 1] = str(n1) + str(n2)
+                self.K_pos[count_1 + 1][count_2] = str(n1) + str(n2)
+                self.K_pos[count_1 + 1][count_2 + 1] = str(n1) + str(n2)
+                count_2 += 2
+            count_1 += 2
+        '''
+        self.K_pos = np.zeros((6, 6), dtype=object)
+        for n1 in node_list:
+            for n2 in node_list:
+                p1 = n1 * 2
+                p2 = n2 * 2
+                self.K_pos[p1-2][p2-2] = str(n1) + str(n2)
+                self.K_pos[p1-1][p2-2] = str(n1) + str(n2)
+                self.K_pos[p1-2][p2-1] = str(n1) + str(n2)
+                self.K_pos[p1-1][p2-1] = str(n1) + str(n2)
+        '''
 
 mesh = {
     'E1':
@@ -62,7 +85,24 @@ for e in mesh:
         mesh[e]['y'][2],
         30000000,
         0.25,
-        0.5
+        0.5,
+        mesh[e]['n']
     )
 
-    print(element.K)
+    mesh[e]['K'] = element.K
+    print(element.K_pos)
+
+node_list = []
+for e in mesh:
+    for n in mesh[e]['n']:
+        if n not in node_list:
+            node_list.append(n)
+
+dof = len(node_list) * 2
+print(dof)
+gK = np.zeros((dof, dof))
+print(gK)
+
+#for e in mesh:
+#    count = 0
+#    for n in mesh[e]['n']:
