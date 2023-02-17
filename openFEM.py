@@ -139,8 +139,8 @@ for e in mesh:
             K_pos_col = int(K_pos.split('|')[1])
             gK[K_pos_row][K_pos_col] = K_value + gK[K_pos_row][K_pos_col]
 
-print('gK')
-print(gK)
+#print('gK')
+#print(gK)
 
 u = [1, 0, 1, 1, 0, 0, 0, 0]
 for i in range(gK.shape[0]):
@@ -148,12 +148,26 @@ for i in range(gK.shape[0]):
         gK[i][j] = gK[i][j] * u[i]    
         gK[i][j] = gK[i][j] * u[j]    
 
-print('gK')  
-print(gK)
+gKr = gK
+print(len(u))
+for i in range(len(u)-1, 0, -1):
+    print(i)
+    if u[i] == 0:
+        gKr = np.delete(gKr, i, 0)
+        gKr = np.delete(gKr, i, 1)
+
+
+#print('gK')  
+#print(gK)
+
+print('gKr')  
+print(gKr)
+
 #k_new = np.dot(gK, u)
 #k_new = np.matmul(gK, u)
 #print('K_new')
 #print(k_new)
-#f = np.array(0, 0, )
-    
+f = np.array([[0], [0], [-1225]])
+r = np.linalg.solve(gKr, f)
+print(r)    
 
