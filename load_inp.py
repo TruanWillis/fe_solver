@@ -32,13 +32,12 @@ class gen_model:
 
     def strip_input(self, input):
         output = [value.replace(" ", "") for value in input]
-        print(input, output)
+        #print(input, output)
         return output
 
 
     def gen_element(self, input):    
         element_type = input[0].split("=")[1].lower()
-        self.model["elements"]["type"] = element_type
         for line in input[1:]:
             split_line = line.split(",")
             element = int(split_line[0])
@@ -47,7 +46,7 @@ class gen_model:
             for node in range(1, len(split_line)):
                 node_list.append(int(split_line[node]))
             self.model["elements"][element]["nodes"] = node_list
-
+            self.model["elements"][element]["type"] = element_type
 
     def gen_node(self, input):
         for line in input[1:]:
@@ -160,10 +159,7 @@ def call_gen_function(inp_lines):
     for line in inp_lines:
         if line[0] == '*' and line[1] != '*':
             keyword = line.split("*")[1].split(",")[0].strip("\n").lower()
-            #keyword = keyword.strip("\n")
-            #print(keyword, len(keyword))
             if keyword in keywords.keys():
-                #print(keyword)
                 keyword_inputs = [line.strip('\n')]
                 line_count_temp = line_count + 1
                 while "*" not in inp_lines[line_count_temp]:
@@ -182,7 +178,6 @@ def load_inp(file):
 
 
 if __name__ == "__main__":
-    #model = gen_model()
     inp_file = load_inp("Job-1.inp")
     model = call_gen_function(inp_file)
     pp = pprint.PrettyPrinter(indent=4)

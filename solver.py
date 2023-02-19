@@ -1,5 +1,4 @@
 import numpy as np
-from tabulate import tabulate
 
 
 class cst_element:
@@ -93,17 +92,12 @@ class cst_element:
         self.u = np.zeros(len(self.node_list))
         self.v = np.zeros(len(self.node_list))
 
-    '''
-    def update_u(self, mesh):
-        for element in mesh:
-            for node in mesh[element][node_list]
-    '''
-
 
 class global_stiffness_matrix:
-    def __init__(self, dof, model):
+    def __init__(self, dof, model, u):
         self.dof = dof
         self.model = model
+        self.u = u
 
         self.matrix_headers = []
         for n in range(1, int((dof/2)+1)):
@@ -115,8 +109,8 @@ class global_stiffness_matrix:
         gK = np.zeros((self.dof, self.dof))
 
         for e in self.model["elements"]:
-            eK = self.model["elements"][e]['K'].eK
-            gK_index = self.model["elements"][e]['K'].gK_index 
+            eK = self.model["elements"][e]['K'].__dict__["eK"]
+            gK_index = self.model["elements"][e]['K'].__dict__["gK_index"]
             for i in range(eK.shape[0]):
                 for j in range(eK.shape[1]):
                     K_value = eK[i][j]
@@ -129,123 +123,34 @@ class global_stiffness_matrix:
         gKr = gK
         matrix_headers_r = self.matrix_headers
 
-        for i in range(len(u)-1, -1, -1):
-            if u[i] == 0:
+        for i in range(len(self.u)-1, -1, -1):
+            if self.u[i] == 0:
                 del matrix_headers_r[i]
                 gKr = np.delete(gKr, i, 0)
                 gKr = np.delete(gKr, i, 1)
 
         return gK, gKr, matrix_headers_r
 
-'''
-mesh = {
-    'E1':
-    {'n':[1, 2, 5],
-    'x':[0, 10, 10],
-    'y':[0, 0, 10]},
-    'E2':
-    {'n':[4, 1, 5],
-    'x':[0, 0, 10],
-    'y':[10, 0, 10]},
-    'E3':
-    {'n':[2, 3, 6],
-    'x':[10, 20, 20],
-    'y':[0, 0, 10]},
-    'E4':
-    {'n':[5, 2, 6],
-    'x':[10, 10, 20],
-    'y':[10, 0, 10]},
-    'E5':
-    {'n':[4, 5, 8],
-    'x':[0, 10, 10],
-    'y':[10, 10, 20]},
-    'E6':
-    {'n':[7, 4, 8],
-    'x':[0, 0, 10],
-    'y':[20, 10, 20]},
-    'E7':
-    {'n':[5, 6, 9],
-    'x':[10, 20, 20],
-    'y':[10, 10, 20]},
-    'E8':
-    {'n':[8, 5, 9],
-    'x':[10, 10, 20],
-    'y':[20, 10, 20]},
-}
-
-u = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1]
-f = np.array([[0], [0], [0], [0], [0], [0], [50000], [50000]])
-
-
-for e in mesh:
-    element = cst_element(
-        mesh[e]['x'],
-        mesh[e]['y'],
-        mesh[e]['n'],
-        210000,
-        0.3,
-        0.1,
-    )
-
-    mesh[e]['data'] = element
-
-
-node_list = []
-for e in mesh:
-    for n in mesh[e]['n']:
-        if n not in node_list:
-            node_list.append(n)
-
-
-dof = len(node_list) * 2
-gsm = global_stiffness_matrix(dof, mesh)
-gK, gKr, header = gsm.define()
-displacements = np.linalg.solve(gKr, f)
-
-
-print(tabulate(gKr, tablefmt="grid", stralign='center', headers=header, showindex=header))
-#print(tabulate(gK, tablefmt="grid", stralign='center'))
-print(tabulate(displacements))    
-
-for i in range(len(displacements)):
-    print(displacements[i])
-    direction, = header.split()[0]
-    node = header.split()[1]
-
-    for element in mesh:
-        index = 0
-        for e_node in mesh[element][node_list]:
-            if e_node == node:
-                if direction == 'u':
-                    mesh[element]['data'].update_u(displacements[i], index)
-                if direction == 'v':
-                    mesh[element]['data'].update_v(displacements[i], index)
-            index += 1
-
-test = 'v'
-print(mesh['E1']['data'].E)
-'''
 
 def define_element_stiffness(model):
     for element in model["elements"]:
-        if element != "type":
-            node_list = model["elements"][element]["nodes"]
-            x_cord = []
-            y_cord = []
-            for node in node_list:
-                x_cord.append(model["nodes"][node][0])
-                y_cord.append(model["nodes"][node][1])
-            
-            cst = cst_element(
-                x_cord,
-                y_cord,
-                node_list,
-                model["elasticity"][0],
-                model["elasticity"][1],
-                model["section"]["thickness"]
-            )
+        node_list = model["elements"][element]["nodes"]
+        x_cord = []
+        y_cord = []
+        for node in node_list:
+            x_cord.append(model["nodes"][node][0])
+            y_cord.append(model["nodes"][node][1])
+        
+        cst = cst_element(
+            x_cord,
+            y_cord,
+            node_list,
+            model["elasticity"][0],
+            model["elasticity"][1],
+            model["section"]["thickness"]
+        )
 
-            model["elements"][element]["K"] = cst
+        model["elements"][element]["K"] = cst
     return model
 
 class solver:
@@ -282,17 +187,66 @@ class solver:
         
         for i in range(self.dof-1, -1, -1):
             if self.u[i] == 0:
-                self.f = np.delete(self.f, i)
-            
+                self.f = np.delete(self.f, i)        
 
-                
+    def define_element_stiffness(self):
+        for element in self.model["elements"]:
+            node_list = self.model["elements"][element]["nodes"]
+            x_cord = []
+            y_cord = []
+            for node in node_list:
+                x_cord.append(self.model["nodes"][node][0])
+                y_cord.append(self.model["nodes"][node][1])
+            
+            cst = cst_element(
+                x_cord,
+                y_cord,
+                node_list,
+                self.model["elasticity"][0],
+                self.model["elasticity"][1],
+                self.model["section"]["thickness"]
+            )
+
+            self.model["elements"][element]["K"] = cst
 
         
+    def define_global_stiffness(self):
+        self.matrix_headers = []
+        for n in range(1, int((self.dof/2)+1)):
+            for displacement in ['u', 'v']:
+                self.matrix_headers.append(displacement + str(n))
+
+        self.gK = np.zeros((self.dof, self.dof))
+
+        for e in self.model["elements"]:
+            eK = self.model["elements"][e]['K'].__dict__["eK"]
+            gK_index = self.model["elements"][e]['K'].__dict__["gK_index"]
+            for i in range(eK.shape[0]):
+                for j in range(eK.shape[1]):
+                    K_value = eK[i][j]
+                    K_index = gK_index[i][j]
+                    K_index_row = int(K_index.split('|')[0])
+                    K_index_col = int(K_index.split('|')[1])
+                    self.gK[K_index_row][K_index_col] = K_value + self.gK[K_index_row][K_index_col]
+                    
+
+        self.gKr = self.gK
+        self.matrix_headers_r = self.matrix_headers
+
+        for i in range(len(self.u)-1, -1, -1):
+            if self.u[i] == 0:
+                del self.matrix_headers_r[i]
+                self.gKr = np.delete(self.gKr, i, 0)
+                self.gKr = np.delete(self.gKr, i, 1)
+
+        #return gK, gKr, matrix_headers_r
 
 
+    def compute_dispalcements(self):
+        self.displacements = np.linalg.solve(self.gKr, self.f)
+        return self.gKr, self.matrix_headers_r, self.displacements 
 
-
-
+        
 
 if __name__ == "__main__":
     print("__main__")
