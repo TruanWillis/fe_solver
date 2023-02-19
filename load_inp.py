@@ -1,4 +1,6 @@
 import os
+import pprint
+
 wk_dir = os.path.dirname(os.path.realpath(__file__))
 
 keywords = {
@@ -24,6 +26,15 @@ class gen_model:
         self.model["section"] = {}
         self.model["material"] = {}
         self.model["elasticity"] = []
+        self.model["boundary"] = {}
+        self.model["load"] = {}
+
+
+    def strip_input(self, input):
+        output = [value.replace(" ", "") for value in input]
+        print(input, output)
+        return output
+
 
     def gen_element(self, input):    
         element_type = input[0].split("=")[1].lower()
@@ -94,6 +105,8 @@ class gen_model:
                 self.model["section"]["elementset"] = item.split("=")[1]
             elif "material" in item.lower():   
                 self.model["section"]["material"] = item.split("=")[1]
+        thickness = self.strip_input(input[1].split(","))[0]
+        self.model["section"]["thickness"] = thickness
 
 
     def gen_material(self, input):
@@ -106,20 +119,41 @@ class gen_model:
             value = float(value.strip().strip("\n"))
             self.model["elasticity"].append(value)
 
-        
+
+    def gen_boundary(self, input):
+        for line in input[1:]:
+            values = line.split(",")
+            values = self.strip_input(values)
+            try:
+                node = int(values[0])
+            except:
+                node = values[0]
+            if node not in self.model["boundary"]:
+                self.model["boundary"][node] = {}
+            if values[1] == values[2]:
+                if int(values[1]) < 3:
+                    if len(values) == 3:
+                        self.model["boundary"][node][values[1]] = 0.
+                    elif len(values) == 4: 
+                        self.model["boundary"][node][values[1]] = float(value[3])
 
 
-    def gen_boundary(self, keyword):
-        print(keyword)
-        self.model["boundary"] = keyword
+    def gen_load(self, input):
+        for line in input[1:]:
+            values = line.split(",")
+            values = self.strip_input(values)
+            try:
+                node = int(values[0])
+            except:
+                node = values[0]
+            if node not in self.model["load"]:
+                self.model["load"][node] = {}
+            if int(values[1]) < 3:
+                self.model["load"][node][values[1]] = float(values[2])
+                
 
-
-    def gen_load(self, keyword):
-        print(keyword)
-        self.model["load"] = keyword
-
-
-def call_gen_function(model, inp_lines):
+def call_gen_function(inp_lines):
+    model = gen_model()
     line_count = 0
     for line in inp_lines:
         if line[0] == '*' and line[1] != '*':
@@ -136,6 +170,7 @@ def call_gen_function(model, inp_lines):
                 function = getattr(model, keywords[keyword])
                 function(keyword_inputs)
         line_count += 1
+    return model.__dict__["model"]
 
 
 def load_inp(file):
@@ -145,7 +180,8 @@ def load_inp(file):
 
 
 if __name__ == "__main__":
-    model = gen_model()
+    #model = gen_model()
     inp_file = load_inp("Job-1.inp")
-    call_gen_function(model, inp_file)
-    print(model.__dict__["model"])
+    model = call_gen_function(inp_file)
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(model)
