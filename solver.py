@@ -93,16 +93,17 @@ class cst_element:
         self.u = np.zeros(len(self.node_list))
         self.v = np.zeros(len(self.node_list))
 
+    '''
     def update_u(self, mesh):
         for element in mesh:
             for node in mesh[element][node_list]
-
+    '''
 
 
 class global_stiffness_matrix:
-    def __init__(self, dof, mesh):
+    def __init__(self, dof, model):
         self.dof = dof
-        self.mesh = mesh
+        self.model = model
 
         self.matrix_headers = []
         for n in range(1, int((dof/2)+1)):
@@ -111,11 +112,11 @@ class global_stiffness_matrix:
 
 
     def define(self):
-        gK = np.zeros((dof, dof))
+        gK = np.zeros((self.dof, self.dof))
 
-        for e in self.mesh:
-            eK = mesh[e]['data'].eK
-            gK_index = mesh[e]['data'].gK_index 
+        for e in self.model["elements"]:
+            eK = self.model["elements"][e]['K'].eK
+            gK_index = self.model["elements"][e]['K'].gK_index 
             for i in range(eK.shape[0]):
                 for j in range(eK.shape[1]):
                     K_value = eK[i][j]
@@ -136,7 +137,7 @@ class global_stiffness_matrix:
 
         return gK, gKr, matrix_headers_r
 
-
+'''
 mesh = {
     'E1':
     {'n':[1, 2, 5],
@@ -223,39 +224,77 @@ for i in range(len(displacements)):
 
 test = 'v'
 print(mesh['E1']['data'].E)
+'''
 
 def define_element_stiffness(model):
     for element in model["elements"]:
-        node_list = model["elements"][element]
-        x_cord = []
-        y_cord = []
-        for node in node_list:
-            x_cord.append(model["nodes"][node][0])
-            y_cord.append(model["nodes"][node][1])
-        
-        cst_element = cst_element(
-            x_cord,
-            y_cord,
-            node_list,
-            model["elasticity"][0],
-            model["elasticity"][1],
-            model["section"]["thickness"]
-        )
-
-        model["elements"]["K"] = cst_element
-
-
-def define_boundary(model):
-    dof = len(model["nodes"].keys()) * 2
-    u = [1] * dof
-
-    for bounday in model["boundary"]:
-        if isinstance(boundary, str):
-            node_list = model["nodesets"][boundary]
+        if element != "type":
+            node_list = model["elements"][element]["nodes"]
+            x_cord = []
+            y_cord = []
+            for node in node_list:
+                x_cord.append(model["nodes"][node][0])
+                y_cord.append(model["nodes"][node][1])
             
+            cst = cst_element(
+                x_cord,
+                y_cord,
+                node_list,
+                model["elasticity"][0],
+                model["elasticity"][1],
+                model["section"]["thickness"]
+            )
+
+            model["elements"][element]["K"] = cst
+    return model
+
+class solver:
+    def __init__(self, model):
+        self.model = model
+        self.dof = len(self.model["nodes"].keys()) * 2
+        self.u = [1]*self.dof
+        self.f = np.zeros(self.dof)
+        
+    def define_boundary(self):
+        for boundary in self.model["boundary"]:
+            if isinstance(boundary, str):
+                node_list = self.model["nodesets"][boundary]
+                for axis in self.model["boundary"][boundary].keys():
+                    for node in node_list:
+                        if axis == "1":
+                            index = (node * 2 - 2)
+                        elif axis == "2":
+                            index = (node * 2 - 1)
+                        self.u[index] = self.model["boundary"][boundary][axis]
+
+        
+    def define_load(self):
+        for load in self.model["load"]:
+            if isinstance(load, str):
+                node_list = self.model["nodesets"][load]
+                for axis in self.model["load"][load].keys():
+                    for node in node_list:
+                        if axis == "1":
+                            index = (node * 2 - 2)
+                        elif axis == "2":
+                            index = (node * 2 - 1)
+                        self.f[index] = self.model["load"][load][axis]
+        
+        for i in range(self.dof-1, -1, -1):
+            if self.u[i] == 0:
+                self.f = np.delete(self.f, i)
+            
+
+                
+
+        
+
+
+
 
 
 
 if __name__ == "__main__":
+    print("__main__")
 
 

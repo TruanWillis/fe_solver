@@ -42,9 +42,11 @@ class gen_model:
         for line in input[1:]:
             split_line = line.split(",")
             element = int(split_line[0])
-            self.model["elements"][element] = []
+            self.model["elements"][element] = {}
+            node_list = []
             for node in range(1, len(split_line)):
-                self.model["elements"][element].append(int(split_line[node]))
+                node_list.append(int(split_line[node]))
+            self.model["elements"][element]["nodes"] = node_list
 
 
     def gen_node(self, input):
