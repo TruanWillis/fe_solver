@@ -12,7 +12,7 @@ if __name__ == '__main__':
     s.define_load()
     s.define_element_stiffness()
     s.define_global_stiffness()
-    global_matrix, headers, displacements = s.compute_dispalcements()
-    print(tabulate(global_matrix, tablefmt="grid", stralign='center', headers=headers, showindex=headers))
-    print(tabulate([list(displacements)], tablefmt="grid", stralign="center", headers=headers))    
+    s.compute_dispalcements()
+    print(tabulate(s.gKr, tablefmt="grid", stralign='center', headers=s.matrix_headers_r, showindex=s.matrix_headers_r))
+    print(tabulate([list(s.displacements)], tablefmt="grid", stralign="center", headers=s.matrix_headers_r))    
     

@@ -93,66 +93,6 @@ class cst_element:
         self.v = np.zeros(len(self.node_list))
 
 
-class global_stiffness_matrix:
-    def __init__(self, dof, model, u):
-        self.dof = dof
-        self.model = model
-        self.u = u
-
-        self.matrix_headers = []
-        for n in range(1, int((dof/2)+1)):
-            for displacement in ['u', 'v']:
-                self.matrix_headers.append(displacement + str(n))
-
-
-    def define(self):
-        gK = np.zeros((self.dof, self.dof))
-
-        for e in self.model["elements"]:
-            eK = self.model["elements"][e]['K'].__dict__["eK"]
-            gK_index = self.model["elements"][e]['K'].__dict__["gK_index"]
-            for i in range(eK.shape[0]):
-                for j in range(eK.shape[1]):
-                    K_value = eK[i][j]
-                    K_index = gK_index[i][j]
-                    K_index_row = int(K_index.split('|')[0])
-                    K_index_col = int(K_index.split('|')[1])
-                    gK[K_index_row][K_index_col] = K_value + gK[K_index_row][K_index_col]
-                    
-
-        gKr = gK
-        matrix_headers_r = self.matrix_headers
-
-        for i in range(len(self.u)-1, -1, -1):
-            if self.u[i] == 0:
-                del matrix_headers_r[i]
-                gKr = np.delete(gKr, i, 0)
-                gKr = np.delete(gKr, i, 1)
-
-        return gK, gKr, matrix_headers_r
-
-
-def define_element_stiffness(model):
-    for element in model["elements"]:
-        node_list = model["elements"][element]["nodes"]
-        x_cord = []
-        y_cord = []
-        for node in node_list:
-            x_cord.append(model["nodes"][node][0])
-            y_cord.append(model["nodes"][node][1])
-        
-        cst = cst_element(
-            x_cord,
-            y_cord,
-            node_list,
-            model["elasticity"][0],
-            model["elasticity"][1],
-            model["section"]["thickness"]
-        )
-
-        model["elements"][element]["K"] = cst
-    return model
-
 class solver:
     def __init__(self, model):
         self.model = model
@@ -239,14 +179,10 @@ class solver:
                 self.gKr = np.delete(self.gKr, i, 0)
                 self.gKr = np.delete(self.gKr, i, 1)
 
-        #return gK, gKr, matrix_headers_r
-
 
     def compute_dispalcements(self):
         self.displacements = np.linalg.solve(self.gKr, self.f)
-        return self.gKr, self.matrix_headers_r, self.displacements 
 
-        
 
 if __name__ == "__main__":
     print("__main__")
