@@ -1,8 +1,6 @@
 import numpy as np
 from tabulate import tabulate
 
-element = np.array([[0,0], [20,0], [0,30]])
-
 
 class cst_element:
     def __init__(self, x_cord, y_cord, node_list, E, v, t):
@@ -19,7 +17,7 @@ class cst_element:
         self.stress_strain_matirx()
         self.stiffness_matrix()
         self.stiffness_matrix_index()
-    
+        self.intialise_displacement()    
 
     def calculate_area(self):
         area = np.array([
@@ -91,6 +89,16 @@ class cst_element:
             count_1 += 2
         
 
+    def intialise_displacement(self):
+        self.u = np.zeros(len(self.node_list))
+        self.v = np.zeros(len(self.node_list))
+
+    def update_u(self, mesh):
+        for element in mesh:
+            for node in mesh[element][node_list]
+
+
+
 class global_stiffness_matrix:
     def __init__(self, dof, mesh):
         self.dof = dof
@@ -115,6 +123,7 @@ class global_stiffness_matrix:
                     K_index_row = int(K_index.split('|')[0])
                     K_index_col = int(K_index.split('|')[1])
                     gK[K_index_row][K_index_col] = K_value + gK[K_index_row][K_index_col]
+                    
 
         gKr = gK
         matrix_headers_r = self.matrix_headers
@@ -125,7 +134,7 @@ class global_stiffness_matrix:
                 gKr = np.delete(gKr, i, 0)
                 gKr = np.delete(gKr, i, 1)
 
-        return gKr, matrix_headers_r
+        return gK, gKr, matrix_headers_r
 
 '''
 mesh = {
@@ -181,8 +190,8 @@ mesh = {
 u = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1]
 f = np.array([[0], [0], [0], [0], [0], [0], [50000], [50000]])
 
+
 for e in mesh:
-    print(e)
     element = cst_element(
         mesh[e]['x'],
         mesh[e]['y'],
@@ -201,65 +210,34 @@ for e in mesh:
         if n not in node_list:
             node_list.append(n)
 
+
 dof = len(node_list) * 2
 gsm = global_stiffness_matrix(dof, mesh)
-gKr, header = gsm.define()
-#header = gsm.matrix_headers
-
-print(header)
+gK, gKr, header = gsm.define()
+displacements = np.linalg.solve(gKr, f)
 
 
-'''
-for e in mesh:
-    print(e)
-    element = cst_element(
-        mesh[e]['x'][0],
-        mesh[e]['x'][1],
-        mesh[e]['x'][2],
-        mesh[e]['y'][0],
-        mesh[e]['y'][1],
-        mesh[e]['y'][2],
-        30000000,
-        0.25,
-        0.5,
-        mesh[e]['n']
-    )
-
-    mesh[e]['data'] = element
-    #print(element.K_pos)
-    #print(element.gK_pos)
-    #print(element.K)
-    #print(element.b)
-'''
-
-'''
-dof = len(node_list) * 2
-gK = np.zeros((dof, dof))
-
-for e in mesh:
-    eK = mesh[e]['data'].eK
-    gK_index = mesh[e]['data'].gK_index 
-    for i in range(eK.shape[0]):
-        for j in range(eK.shape[1]):
-            K_value = eK[i][j]
-            K_index = gK_index[i][j]
-            K_index_row = int(K_index.split('|')[0])
-            K_index_col = int(K_index.split('|')[1])
-            gK[K_index_row][K_index_col] = K_value + gK[K_index_row][K_index_col]
-
-
-
-
-gKr = gK
-
-for i in range(len(u)-1, -1, -1):
-    if u[i] == 0:
-        gKr = np.delete(gKr, i, 0)
-        gKr = np.delete(gKr, i, 1)
-'''
-print('gKr')  
 print(tabulate(gKr, tablefmt="grid", stralign='center', headers=header, showindex=header))
+#print(tabulate(gK, tablefmt="grid", stralign='center'))
+print(tabulate(displacements))    
 
-r = np.linalg.solve(gKr, f)
-print(r)    
+for i in range(len(displacements)):
+    print(displacements[i])
+    direction, = header.split()[0]
+    node = header.split()[1]
+
+    for element in mesh:
+        index = 0
+        for e_node in mesh[element][node_list]:
+            if e_node == node:
+                if direction == 'u':
+                    mesh[element]['data'].update_u(displacements[i], index)
+                if direction == 'v':
+                    mesh[element]['data'].update_v(displacements[i], index)
+            index += 1
+
+test = 'v'
+print(mesh['E1']['data'].E)
+
+
 
