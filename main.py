@@ -13,6 +13,10 @@ if __name__ == '__main__':
     s.define_element_stiffness()
     s.define_global_stiffness()
     s.compute_dispalcements()
+    s.compute_principal_stress()
+    s.compute_mises_stress()
     print(tabulate(s.gKr, tablefmt="grid", stralign='center', headers=s.matrix_headers_r, showindex=s.matrix_headers_r))
     print(tabulate([list(s.displacements)], tablefmt="grid", stralign="center", headers=s.matrix_headers_r))    
-    
+    print(tabulate(s.principal_stress_results, tablefmt="grid", stralign="center", headers=["el", "s1", "s2", "s12"]))
+    print(tabulate(s.mises_stress_results, tablefmt="grid", stralign="center", headers=["el", "mises"]))
+  

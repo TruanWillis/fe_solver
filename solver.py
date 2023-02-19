@@ -1,4 +1,5 @@
 import numpy as np
+import math as m
 
 
 class cst_element:
@@ -182,6 +183,57 @@ class solver:
 
     def compute_dispalcements(self):
         self.displacements = np.linalg.solve(self.gKr, self.f)
+        for i in range(0, len(self.displacements)):
+            result = self.displacements[i]
+            direction = self.matrix_headers_r[i][0]
+            node = int(self.matrix_headers_r[i][1:])
+
+            if direction == "u":
+                offset = 2
+            if direction == "v":
+                offset = 1
+
+            index = (node * 2) - offset
+            self.u[index] = result
+
+        
+    def compute_principal_stress(self):
+        self.principal_stress_results = []
+        for element in self.model["elements"]:
+            node_list = self.model["elements"][element]["nodes"]
+            u = np.zeros(len(node_list)*2)
+            count = 0
+            for node in node_list:
+                for offset in [2, 1]:
+                    index = (node * 2) - offset
+                    u[count] = self.u[index]
+                    count += 1
+
+            D = self.model["elements"][element]["K"].__dict__["D"]
+            B = self.model["elements"][element]["K"].__dict__["B"]
+            #print(element, np.matmul(np.matmul(D, B), u))
+            principal_stress = np.matmul(np.matmul(D, B), u)
+            print(np.shape(principal_stress))
+            self.principal_stress_results.append([
+                element, 
+                principal_stress[0],
+                principal_stress[1],
+                principal_stress[2],
+                ])
+
+
+    def compute_mises_stress(self):
+        self.mises_stress_results = []
+        for result in self.principal_stress_results:
+            sigma_1 = result[1]
+            sigma_2 = result[2]
+            sigma_12 = result[3]
+
+            mises = m.sqrt(sigma_1**2 - sigma_1 * sigma_2 + sigma_2**2 + 3 * sigma_12**2)
+            self.mises_stress_results.append([result[0], mises])
+        
+
+
 
 
 if __name__ == "__main__":
