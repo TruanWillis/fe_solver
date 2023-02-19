@@ -22,6 +22,8 @@ class gen_model:
         self.model["nodesets"] = {}
         self.model["elementsets"] = {}
         self.model["section"] = {}
+        self.model["material"] = {}
+        self.model["elasticity"] = []
 
     def gen_element(self, input):    
         element_type = input[0].split("=")[1].lower()
@@ -94,14 +96,17 @@ class gen_model:
                 self.model["section"]["material"] = item.split("=")[1]
 
 
-    def gen_material(self, keyword):
-        print(keyword)
-        self.model["material"] = keyword
+    def gen_material(self, input):
+        materail_name = input[0].split("=")[1].strip("\n")
+        self.model["material"][materail_name] = {}
 
 
-    def gen_material_elasticity(self, keyword):
-        print(keyword)
-        self.model["elasticity"] = keyword
+    def gen_material_elasticity(self, input):
+        for value in input[1].split(","):
+            value = float(value.strip().strip("\n"))
+            self.model["elasticity"].append(value)
+
+        
 
 
     def gen_boundary(self, keyword):
