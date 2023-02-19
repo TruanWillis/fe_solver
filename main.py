@@ -1,6 +1,6 @@
 import load_inp
 import solver
-import numpy as np
+import plot
 from tabulate import tabulate
 
 
@@ -15,6 +15,7 @@ if __name__ == '__main__':
     s.compute_dispalcements()
     s.compute_principal_stress()
     s.compute_mises_stress()
+    plot.plot_mises(model, s.mises_stress_results)
     print(tabulate(s.gKr, tablefmt="grid", stralign='center', headers=s.matrix_headers_r, showindex=s.matrix_headers_r))
     print(tabulate([list(s.displacements)], tablefmt="grid", stralign="center", headers=s.matrix_headers_r))    
     print(tabulate(s.principal_stress_results, tablefmt="grid", stralign="center", headers=["el", "s1", "s2", "s12"]))
