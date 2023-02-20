@@ -179,7 +179,7 @@ def load_inp(file):
 
 
 if __name__ == "__main__":
-    inp_file = load_inp("Job-2.inp")
+    inp_file = load_inp("Job-1.inp")
     model = call_gen_function(inp_file)
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(model)

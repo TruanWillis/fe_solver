@@ -197,8 +197,8 @@ class solver:
             self.u[index] = result
 
         
-    def compute_principal_stress(self):
-        self.principal_stress_results = []
+    def compute_normal_stress(self):
+        self.normal_stress_results = []
         for element in self.model["elements"]:
             node_list = self.model["elements"][element]["nodes"]
             u = np.zeros(len(node_list)*2)
@@ -212,27 +212,38 @@ class solver:
             D = self.model["elements"][element]["K"].__dict__["D"]
             B = self.model["elements"][element]["K"].__dict__["B"]
             
-            principal_stress = np.matmul(np.matmul(D, B), u)
-            self.principal_stress_results.append([
+            normal_stress = np.matmul(np.matmul(D, B), u)
+            self.normal_stress_results.append([
                 element, 
-                principal_stress[0],
-                principal_stress[1],
-                principal_stress[2],
+                normal_stress[0],
+                normal_stress[1],
+                normal_stress[2],
                 ])
+
+
+    def compute_principal_stress(self):
+        self.principal_stress_results = []
+        for s in self.normal_stress_results:
+            Sx, Sy, Sxy = s[1], s[2], s[3]
+            s1 = ((Sx + Sy)/2)+m.sqrt(((Sx-Sy)/2)**2+Sxy**2)
+            s2 = ((Sx + Sy)/2)-m.sqrt(((Sx-Sy)/2)**2+Sxy**2)
+            s12 = m.sqrt(((Sx-Sy)/2)**2+Sxy**2)
+            angle = 0.5*m.atan((2*Sxy)/(Sx-Sy))
+            opp = m.cos(angle)*s1
+            print(s)
+            print(s1, s2,s12, angle, opp)
+            self.principal_stress_results.append([s1, s2, s12, angle, opp]) 
 
 
     def compute_mises_stress(self):
         self.mises_stress_results = []
-        for result in self.principal_stress_results:
+        for result in self.normal_stress_results:
             sigma_1 = result[1]
             sigma_2 = result[2]
             sigma_12 = result[3]
 
             mises = m.sqrt(sigma_1**2 - sigma_1 * sigma_2 + sigma_2**2 + 3 * sigma_12**2)
             self.mises_stress_results.append([result[0], mises])
-        
-
-
 
 
 if __name__ == "__main__":
