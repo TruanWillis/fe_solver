@@ -19,5 +19,5 @@ if __name__ == '__main__':
     #print(tabulate([list(s.displacements)], tablefmt="grid", stralign="center", headers=s.matrix_headers_r))    
     #print(tabulate(s.principal_stress_results, tablefmt="grid", stralign="center", headers=["el", "s1", "s2", "s12"]))
     #print(tabulate(s.mises_stress_results, tablefmt="grid", stralign="center", headers=["el", "mises"]))
-    plot.plot_mises(model, s.mises_stress_results, s.u, 2)
+    plot.plot_results(model, s.mises_stress_results, s.u, 2)
   

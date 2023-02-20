@@ -9,11 +9,15 @@ def plot_mises(model, mises, u, scale):
     for node in model["nodes"]:
         nodes.append(model["nodes"][node])
 
+    nodes_d = []
     for i in range(0, len(nodes)):
         index_1 = ((i+1)*2)-2
         index_2 = ((i+1)*2)-1
-        nodes[i][0] = nodes[i][0] + (u[index_1]*scale)
-        nodes[i][1] = nodes[i][1] + (u[index_2]*scale)
+        x = nodes[i][0] + (u[index_1]*scale)
+        y = nodes[i][1] + (u[index_2]*scale)
+        nodes_d.append([x, y])
+        #nodes_d[i][0] = nodes_d[i][0] + (u[index_1]*scale)
+        #nodes_d[i][1] = nodes_d[i][1] + (u[index_2]*scale)
 
     elements = []
     for element in model["elements"]:
@@ -52,17 +56,24 @@ def plot_mises(model, mises, u, scale):
     '''
 
     nodes = np.array(nodes)
+    nodes_d = np.array(nodes_d)
     elements = np.array(elements)
 
     x, y = nodes.T
+    x_d, y_d = nodes_d.T
+    print(len(values_u))
+    print(len(values_s))
 
     fig, axs = plt.subplots(1, 2, num="openFEM 0.0.1")
-    u_plot = axs[0].tripcolor(x, y, elements, values_u, edgecolors='k', cmap="rainbow")
-    s_plot = axs[1].tripcolor(x, y, elements, values_s, edgecolors='k', cmap="rainbow")
+    #m_plot = axs[0].triplot(x, y, elements)
+    u_plot = axs[0].tripcolor(x_d, y_d, elements, values_u, edgecolors='k', cmap="rainbow")
+    s_plot = axs[1].tripcolor(x_d, y_d, elements, values_s, edgecolors='k', cmap="rainbow")
+    #axs[0].axis('off')
     axs[0].axis('off')
     axs[1].axis('off')
-    axs[0].set_title("Displacement", y = -0.07)
-    axs[1].set_title("Stress (von Mises)", y = -0.07)
+    #axs[0].set_title("Model", y = -0.07)
+    axs[0].set_title("U [Magnitude]", y = -0.07)
+    axs[1].set_title("S [von Mises]", y = -0.07)
     #axs[0].set_xlabel("Displacement")
     #axs[1].set_xlabel("Stress (von Mises)")
     fig.colorbar(u_plot, ax=axs[0])
