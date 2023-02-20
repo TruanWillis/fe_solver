@@ -48,6 +48,7 @@ class gen_model:
             self.model["elements"][element]["nodes"] = node_list
             self.model["elements"][element]["type"] = element_type
 
+
     def gen_node(self, input):
         for line in input[1:]:
             split_line = line.split(",")
@@ -178,7 +179,7 @@ def load_inp(file):
 
 
 if __name__ == "__main__":
-    inp_file = load_inp("Job-1.inp")
+    inp_file = load_inp("Job-2.inp")
     model = call_gen_function(inp_file)
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(model)

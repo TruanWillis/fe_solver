@@ -211,9 +211,8 @@ class solver:
 
             D = self.model["elements"][element]["K"].__dict__["D"]
             B = self.model["elements"][element]["K"].__dict__["B"]
-            #print(element, np.matmul(np.matmul(D, B), u))
+            
             principal_stress = np.matmul(np.matmul(D, B), u)
-            print(np.shape(principal_stress))
             self.principal_stress_results.append([
                 element, 
                 principal_stress[0],
