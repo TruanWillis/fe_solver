@@ -53,13 +53,15 @@ def plot_results(model, s, scale):
         v_x.append([x_])
         v_y.append([y_])
 
+    v_s = []
     v_u = []
     v_v = []
 
 
     for stress in s.principal_stress_results:
-        v_u.append(stress[4])
-        v_v.append(stress[0])
+        v_s.append(stress[1])
+        v_u.append(stress[5])
+        v_v.append(stress[6])
 
     
     nodes = np.array(nodes)
@@ -77,7 +79,10 @@ def plot_results(model, s, scale):
     #s_plot = axs[1].triplot(x_d, y_d, elements)
     #axs[1].triplot(x_d, y_d, elements)
     #axs[1].quiver([10, 20], [10, 20], [1, 4], [2, 8])
-    v_plot = axs[2].quiver(v_x, v_y, v_u, v_v, v_v, cmap="rainbow")
+    v_plot = axs[2].quiver(v_x, v_y, v_u, v_v, v_s, cmap="rainbow")
+    v_u_opp = [u*-1 for u in v_u]
+    v_v_opp = [v*-1 for v in v_v]
+    axs[2].quiver(v_x, v_y, v_u_opp, v_v_opp, v_s, cmap="rainbow")
     axs[2].triplot(x_d, y_d, elements)
     
     #axs[0].axis('off')

@@ -137,7 +137,7 @@ class gen_model:
                     if len(values) == 3:
                         self.model["boundary"][node][values[1]] = 0.
                     elif len(values) == 4: 
-                        self.model["boundary"][node][values[1]] = float(value[3])
+                        self.model["boundary"][node][values[1]] = float(values[3])
 
 
     def gen_load(self, input):
@@ -179,7 +179,7 @@ def load_inp(file):
 
 
 if __name__ == "__main__":
-    inp_file = load_inp("Job-1.inp")
+    inp_file = load_inp("Job-3.inp")
     model = call_gen_function(inp_file)
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(model)

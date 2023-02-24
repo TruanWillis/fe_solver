@@ -1,5 +1,7 @@
+import load_inp
 import numpy as np
 import math as m
+import pprint
 
 
 class cst_element:
@@ -98,7 +100,8 @@ class solver:
     def __init__(self, model):
         self.model = model
         self.dof = len(self.model["nodes"].keys()) * 2
-        self.u = [1]*self.dof
+        #self.u = ['?']*self.dof
+        self.u = [-1e-99]*self.dof
         self.f = np.zeros(self.dof)
         
     def define_boundary(self):
@@ -115,20 +118,26 @@ class solver:
 
         
     def define_load(self):
-        for load in self.model["load"]:
-            if isinstance(load, str):
-                node_list = self.model["nodesets"][load]
-                for axis in self.model["load"][load].keys():
-                    for node in node_list:
-                        if axis == "1":
-                            index = (node * 2 - 2)
-                        elif axis == "2":
-                            index = (node * 2 - 1)
-                        self.f[index] = self.model["load"][load][axis]
+        if bool(self.model['load']) is False:
+            self.f = np.matmul(self.gK, self.u)
+        else:
+            for load in self.model["load"]:
+                if isinstance(load, str):
+                    node_list = self.model["nodesets"][load]
+                    for axis in self.model["load"][load].keys():
+                        for node in node_list:
+                            if axis == "1":
+                                index = (node * 2 - 2)
+                            elif axis == "2":
+                                index = (node * 2 - 1)
+                            self.f[index] = self.model["load"][load][axis]
         
+        '''
         for i in range(self.dof-1, -1, -1):
             if self.u[i] == 0:
                 self.f = np.delete(self.f, i)        
+        '''
+
 
     def define_element_stiffness(self):
         for element in self.model["elements"]:
@@ -170,7 +179,7 @@ class solver:
                     K_index_col = int(K_index.split('|')[1])
                     self.gK[K_index_row][K_index_col] = K_value + self.gK[K_index_row][K_index_col]
                     
-
+        '''
         self.gKr = self.gK
         self.matrix_headers_r = self.matrix_headers
 
@@ -179,6 +188,22 @@ class solver:
                 del self.matrix_headers_r[i]
                 self.gKr = np.delete(self.gKr, i, 0)
                 self.gKr = np.delete(self.gKr, i, 1)
+        '''
+
+    def reduce_matrix(self):
+        self.gKr = self.gK
+        self.matrix_headers_r = self.matrix_headers
+
+        for i in range(len(self.u)-1, -1, -1):
+            if self.u[i] == 0:
+                del self.matrix_headers_r[i]
+                self.gKr = np.delete(self.gKr, i, 0)
+                self.gKr = np.delete(self.gKr, i, 1)
+                self.f = np.delete(self.f, i)     
+        
+        for i in range(len(self.f)):
+            if abs(self.f[i]) < 1e-75:
+                self.f[i] = 0
 
 
     def compute_dispalcements(self):
@@ -228,11 +253,15 @@ class solver:
             s1 = ((Sx + Sy)/2)+m.sqrt(((Sx-Sy)/2)**2+Sxy**2)
             s2 = ((Sx + Sy)/2)-m.sqrt(((Sx-Sy)/2)**2+Sxy**2)
             s12 = m.sqrt(((Sx-Sy)/2)**2+Sxy**2)
-            angle = 0.5*m.atan((2*Sxy)/(Sx-Sy))
-            opp = m.cos(angle)*s1
-            print(s)
-            print(s1, s2,s12, angle, opp)
-            self.principal_stress_results.append([s1, s2, s12, angle, opp]) 
+            try:
+                angle = -0.5*m.atan((2*Sxy)/(Sx-Sy))
+                opp = m.sin(angle)*s1
+                adj = m.cos(angle)*s1
+            except:
+                angle = 0
+                opp = 0
+                adj = s1
+            self.principal_stress_results.append([s[0], s1, s2, s12, angle, opp, adj]) 
 
 
     def compute_mises_stress(self):
@@ -247,6 +276,23 @@ class solver:
 
 
 if __name__ == "__main__":
-    print("__main__")
+    inp = load_inp.load_inp("Job-2.inp")
+    model = load_inp.call_gen_function(inp)
+    s = solver(model)
 
+    s.define_element_stiffness()
+    s.define_global_stiffness()
+    s.define_boundary()
+    s.define_load()
+    s.reduce_matrix()
+    #s.compute_dispalcements()
+    #s.compute_normal_stress()
+    #s.compute_principal_stress()
+    #s.compute_mises_stress()
 
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(s.__dict__['u'])
+    pp.pprint(s.__dict__['f'])
+
+    test = np.matmul(s.__dict__['gK'], np.array(s.__dict__['u']))
+    print(test)
