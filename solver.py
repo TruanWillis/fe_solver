@@ -21,6 +21,7 @@ class cst_element:
         self.stiffness_matrix_index()
         self.intialise_displacement()    
 
+
     def calculate_area(self):
         area = np.array([
             [1, self.x_cord[0], self.y_cord[0]],
@@ -100,10 +101,12 @@ class solver:
     def __init__(self, model):
         self.model = model
         self.dof = len(self.model["nodes"].keys()) * 2
-        #self.u = ['?']*self.dof
-        self.u = [-1e-99]*self.dof
+        self.u = ['*']*self.dof
+        #self.u = [-1e-99]*self.dof
+        #self.u = [1]*self.dof
         self.f = np.zeros(self.dof)
         
+    
     def define_boundary(self):
         for boundary in self.model["boundary"]:
             if isinstance(boundary, str):
@@ -119,7 +122,8 @@ class solver:
         
     def define_load(self):
         if bool(self.model['load']) is False:
-            self.f = np.matmul(self.gK, self.u)
+            #self.f = np.matmul(self.gK, self.u)
+            pass
         else:
             for load in self.model["load"]:
                 if isinstance(load, str):
@@ -190,19 +194,35 @@ class solver:
                 self.gKr = np.delete(self.gKr, i, 1)
         '''
 
+
     def reduce_matrix(self):
         self.gKr = self.gK
         self.matrix_headers_r = self.matrix_headers
 
+        u_temp = []
         for i in range(len(self.u)-1, -1, -1):
             if self.u[i] == 0:
                 del self.matrix_headers_r[i]
                 self.gKr = np.delete(self.gKr, i, 0)
                 self.gKr = np.delete(self.gKr, i, 1)
-                self.f = np.delete(self.f, i)     
-        
+                self.f = np.delete(self.f, i)   
+            else:
+                u_temp.append(self.u[i])
+        u_temp.reverse()
+
+        '''
         for i in range(len(self.f)):
             if abs(self.f[i]) < 1e-75:
+                self.f[i] = 0
+        '''
+
+        if np.sum(self.f) == 0:
+            for i in range(len(u_temp)):
+                if u_temp[i] == '*':
+                    u_temp[i] = 0
+            self.f = np.matmul(self.gKr, u_temp)
+        for i in range(len(u_temp)):
+            if u_temp[i] == 0:
                 self.f[i] = 0
 
 
@@ -276,7 +296,8 @@ class solver:
 
 
 if __name__ == "__main__":
-    inp = load_inp.load_inp("Job-2.inp")
+    pp = pprint.PrettyPrinter(indent=4)
+    inp = load_inp.load_inp("Job-5.inp")
     model = load_inp.call_gen_function(inp)
     s = solver(model)
 
@@ -284,15 +305,23 @@ if __name__ == "__main__":
     s.define_global_stiffness()
     s.define_boundary()
     s.define_load()
+    pp.pprint(s.__dict__['u'])
+    pp.pprint(s.__dict__['f'])
+    #pp.pprint(s.__dict__['gK'])
     s.reduce_matrix()
-    #s.compute_dispalcements()
+    pp.pprint(s.__dict__['u'])
+    pp.pprint(s.__dict__['f'])
+    s.compute_dispalcements()
     #s.compute_normal_stress()
     #s.compute_principal_stress()
     #s.compute_mises_stress()
 
-    pp = pprint.PrettyPrinter(indent=4)
+    #pp.pprint(s.__dict__.keys())
     pp.pprint(s.__dict__['u'])
     pp.pprint(s.__dict__['f'])
+    pp.pprint(s.__dict__['displacements'])
 
     test = np.matmul(s.__dict__['gK'], np.array(s.__dict__['u']))
+    dis = np.linalg.solve(s.__dict__['gK'], test)
     print(test)
+    print(dis)
