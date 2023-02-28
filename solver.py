@@ -1,6 +1,7 @@
 import load_inp
 import numpy as np
 import math as m
+import pandas as pd
 import pprint
 
 
@@ -9,6 +10,12 @@ class cst_element:
         self.x_cord = [float(x) for x in x_cord]                                                
         self.y_cord = [float(y) for y in y_cord]
         self.node_list = node_list
+
+        self.node_headings = []
+        for n in self.node_list:
+            for disp in ['u', 'v']:
+                self.node_headings.append(str(n) + disp)
+
         self.E = float(E)
         self.v = float(v)
         self.t = float(t)
@@ -63,6 +70,15 @@ class cst_element:
         Bt = self.B.transpose()
         self.eK = np.matmul(Bt, np.matmul(self.D, self.B)) * self.area * self.t 
 
+        #print(self.eK)
+        self.eK_df = pd.DataFrame(
+            self.eK,
+            columns=self.node_headings,
+            index=self.node_headings
+        )
+
+        #print(self.eK_df)
+
 
     def stiffness_matrix_index(self):
         self.eK_index = np.zeros((self.dof, self.dof), dtype=object)
@@ -90,6 +106,8 @@ class cst_element:
                 self.gK_index[count_1 + 1][count_2 + 1] = str(origin_row+1) + '|' + str(origin_col+1)
                 count_2 += 2
             count_1 += 2
+        #print(self.eK_index)
+        #print(self.gK_index)
         
 
     def intialise_displacement(self):
@@ -106,7 +124,37 @@ class solver:
         #self.u = [1]*self.dof
         self.f = np.zeros(self.dof)
         self.homogeneous_model = True
+
+        self.node_headings = []
+        for n in range(1, int((self.dof/2)+1)):
+            for disp in ['u', 'v']:
+                self.node_headings.append(str(n) + disp)
+
+        self.f_df = pd.DataFrame(
+            self.f,
+            index=self.node_headings
+        )
     
+        self.u_df = pd.DataFrame(
+            self.u,
+            index=self.node_headings
+        )
+
+        self.f_ds = pd.Series(
+            self.f,
+            index=self.node_headings
+        )
+
+        self.u_ds = pd.Series(
+            self.u,
+            index=self.node_headings
+        )
+
+        #print(self.f_df)
+        #print(self.f_ds)
+        #print(self.u_df)
+        #print(self.u_ds)
+
     def define_boundary(self):
         for boundary in self.model["boundary"]:
             if isinstance(boundary, str):
@@ -115,10 +163,14 @@ class solver:
                     for node in node_list:
                         if axis == "1":
                             index = (node * 2 - 2)
+                            disp = 'u'
                         elif axis == "2":
                             index = (node * 2 - 1)
+                            disp = 'v'
                         self.u[index] = self.model["boundary"][boundary][axis]
-
+                        self.u_ds._set_value(str(node)+disp, self.model["boundary"][boundary][axis])
+        #print(self.u)
+        #print(self.u_ds)
         
     def define_load(self):
         if bool(self.model['load']) is False:
@@ -133,10 +185,14 @@ class solver:
                         for node in node_list:
                             if axis == "1":
                                 index = (node * 2 - 2)
+                                disp = 'u'
                             elif axis == "2":
                                 index = (node * 2 - 1)
+                                disp = 'v'
                             self.f[index] = self.model["load"][load][axis]
-        
+                            self.f_ds._set_value(str(node)+disp, self.model["load"][load][axis])
+        #print(self.f)
+        #print(self.f_ds)
         '''
         for i in range(self.dof-1, -1, -1):
             if self.u[i] == 0:
@@ -184,6 +240,23 @@ class solver:
                     K_index_col = int(K_index.split('|')[1])
                     self.gK[K_index_row][K_index_col] = K_value + self.gK[K_index_row][K_index_col]
                     
+        self.gK_df = pd.DataFrame(
+            np.zeros((self.dof, self.dof)),
+            columns=self.node_headings,
+            index=self.node_headings
+        )
+
+        for e in self.model["elements"]:
+            eK_df = self.model["elements"][e]['K'].__dict__["eK_df"]
+
+            for column in eK_df:
+                for index, row in eK_df.iterrows():
+                    value = self.gK_df._get_value(index, column) + eK_df._get_value(index, column)
+                    self.gK_df._set_value(index, column, value)
+
+        #print(self.gK)
+        #print(self.gK_df)
+        
         '''
         self.gKr = self.gK
         self.matrix_headers_r = self.matrix_headers
@@ -216,12 +289,40 @@ class solver:
                     if u_temp[i] == '*':
                         u_temp[i] = 0
                 self.f = np.matmul(self.gKr, u_temp)
+                
                 for i in range(len(u_temp)-1, -1, -1):
                     if u_temp[i] != 0:
                         del self.matrix_headers_r[i]
                         self.gKr = np.delete(self.gKr, i, 0)
                         self.gKr = np.delete(self.gKr, i, 1)
                         self.f = np.delete(self.f, i)   
+
+        
+        self.gKr_df = self.gK_df.copy()
+        u_temp_ds = self.u_ds.copy()
+
+        for index , u in self.u_ds.items():
+            if u == 0:
+                self.gKr_df.drop(index=index, columns=index, inplace=True)
+                self.f_ds.drop(labels=index, inplace=True)   
+                u_temp_ds.drop(labels=index, inplace=True) 
+            else:
+                if u == '*':
+                    u_temp_ds._set_value(index, 0.)
+                else:
+                    u_temp_ds._set_value(index, u)
+        #print(self.gKr_df)
+    
+        if not self.homogeneous_model:
+            #print(u_temp_ds) 
+            #f = self.gKr_df.dot(u_temp_ds)
+            self.f_ds = self.gKr_df.dot(u_temp)
+            #print(f)
+            
+            for index, u in u_temp_ds.items():
+                if u != 0:
+                    self.gKr_df.drop(index=index, columns=index, inplace=True)
+                    self.f_ds.drop(labels=index, inplace=True)   
             
 
     def compute_dispalcements(self):
@@ -241,6 +342,13 @@ class solver:
                 self.u[index] = result
             elif not self.homogeneous_model:
                 self.u[index] = result * -1
+
+        gKr = self.gKr_df.to_numpy()
+        f = self.f_ds.to_numpy()
+        disp = np.linalg.solve(gKr, f)
+        self.disp_ds = pd.Series(disp, index=self.f_ds.index)
+        for index, u in self.disp_ds.items():
+            self.u_ds._set_value(index, u*-1)
 
         
     def compute_normal_stress(self):
@@ -265,6 +373,32 @@ class solver:
                 normal_stress[1],
                 normal_stress[2],
                 ])
+        
+        elements = self.model["elements"].keys()
+        index = ["e" + str(element) for element in elements]
+        self.norm_stress_df = pd.DataFrame(
+           index=index,
+           columns=["s1", "s2", "s12"]
+           )
+        
+        for element in elements:
+            node_list = self.model["elements"][element]["nodes"]
+            u = np.zeros(len(node_list)*2)
+            count = 0
+            for node in node_list:
+                for disp in ["u", "v"]:
+                    u[count] = self.u_ds[str(node)+disp]
+                    count += 1
+
+            D = self.model["elements"][element]["K"].__dict__["D"]
+            B = self.model["elements"][element]["K"].__dict__["B"]
+            
+            normal_stress = np.matmul(np.matmul(D, B), u)
+            self.norm_stress_df.loc["e" + str(element)] = [
+                normal_stress[0],
+                normal_stress[1],
+                normal_stress[2],
+                ]
 
 
     def compute_principal_stress(self):
@@ -290,6 +424,34 @@ class solver:
             self.principal_stress_results.append([s[0], s1, s2, s12, angle, opp, adj]) 
 
 
+         
+        index = ["e" + str(element) for element in self.model["elements"].keys()]
+        self.princ_stress_df = pd.DataFrame(
+           index=index,
+           columns=["s_max", "s_min", "s_shear", "a", "opp", "adj"]
+           )
+        
+        for index, row in self.norm_stress_df.iterrows():
+            Sx, Sy, Sxy = row[0], row[1], row[2]
+            s1 = ((Sx + Sy)/2)+m.sqrt(((Sx-Sy)/2)**2+Sxy**2)
+            s2 = ((Sx + Sy)/2)-m.sqrt(((Sx-Sy)/2)**2+Sxy**2)
+            s12 = m.sqrt(((Sx-Sy)/2)**2+Sxy**2)
+            if Sx == Sy:
+                angle = 0
+                opp = 0
+                adj = s1
+            else: 
+                try:
+                    angle = -0.5*m.atan((2*Sxy)/(Sx-Sy))
+                    opp = m.sin(angle)*s1
+                    adj = m.cos(angle)*s1
+                except:
+                    angle = 0
+                    opp = 0
+                    adj = s1
+            self.princ_stress_df.loc[index] = [s1, s2, s12, angle, opp, adj] 
+
+
     def compute_mises_stress(self):
         self.mises_stress_results = []
         for result in self.normal_stress_results:
@@ -299,11 +461,25 @@ class solver:
 
             mises = m.sqrt(sigma_1**2 - sigma_1 * sigma_2 + sigma_2**2 + 3 * sigma_12**2)
             self.mises_stress_results.append([result[0], mises])
+        
+        index = ["e" + str(element) for element in self.model["elements"].keys()]
+        self.mises_stress_df = pd.DataFrame(
+           index=index,
+           columns=["s_mises"]
+           )
+        
+        for index, row in self.norm_stress_df.iterrows():
+            sigma_1 = row[0]
+            sigma_2 = row[1]
+            sigma_12 = row[2]
+
+            mises = m.sqrt(sigma_1**2 - sigma_1 * sigma_2 + sigma_2**2 + 3 * sigma_12**2)
+            self.mises_stress_df.loc[index] = mises
 
 
 if __name__ == "__main__":
     pp = pprint.PrettyPrinter(indent=4)
-    inp = load_inp.load_inp("Job-5.inp")
+    inp = load_inp.load_inp("Job-6.inp")
     model = load_inp.call_gen_function(inp)
     s = solver(model)
 
@@ -311,22 +487,27 @@ if __name__ == "__main__":
     s.define_global_stiffness()
     s.define_boundary()
     s.define_load()
-    pp.pprint(s.__dict__['u'])
-    pp.pprint(s.__dict__['f'])
-    pp.pprint(s.__dict__['gK'])
+    #pp.pprint(s.__dict__['u'])
+    #pp.pprint(s.__dict__['f'])
+    #pp.pprint(s.__dict__['gK'])
     s.reduce_matrix()
-    pp.pprint(s.__dict__['u'])
-    pp.pprint(s.__dict__['f'])
-    pp.pprint(s.__dict__['gKr'])
+    #pp.pprint(s.__dict__['u'])
+    #pp.pprint(s.__dict__['f'])
+    #pp.pprint(s.__dict__['gKr'])
+    
     s.compute_dispalcements()
-    #s.compute_normal_stress()
-    #s.compute_principal_stress()
-    #s.compute_mises_stress()
+    s.compute_normal_stress()
+    s.compute_principal_stress()
+    s.compute_mises_stress()
 
     #pp.pprint(s.__dict__.keys())
-    pp.pprint(s.__dict__['u'])
+    #pp.pprint(s.__dict__['u'])
     #pp.pprint(s.__dict__['f'])
     #pp.pprint(s.__dict__['displacements'])
+    #pp.pprint(s.__dict__['disp_ds'])
+
+    #pp.pprint(s.__dict__['u'])
+    #pp.pprint(s.__dict__['u_ds'])
 
     #test = np.matmul(s.__dict__['gK'], np.array(s.__dict__['u']))
     #dis = np.linalg.solve(s.__dict__['gK'], test)
