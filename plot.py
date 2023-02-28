@@ -83,7 +83,7 @@ def plot_results(model, s, scale):
     v_u_opp = [u*-1 for u in v_u]
     v_v_opp = [v*-1 for v in v_v]
     axs[2].quiver(v_x, v_y, v_u_opp, v_v_opp, v_s, cmap="rainbow")
-    axs[2].triplot(x_d, y_d, elements)
+    axs[2].triplot(x_d, y_d, elements, linewidth=0.4, color='black')
     
     #axs[0].axis('off')
     axs[0].axis('off')

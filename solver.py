@@ -105,7 +105,7 @@ class solver:
         #self.u = [-1e-99]*self.dof
         #self.u = [1]*self.dof
         self.f = np.zeros(self.dof)
-        
+        self.homogeneous_model = True
     
     def define_boundary(self):
         for boundary in self.model["boundary"]:
@@ -123,7 +123,8 @@ class solver:
     def define_load(self):
         if bool(self.model['load']) is False:
             #self.f = np.matmul(self.gK, self.u)
-            pass
+            #pass
+            self.homogeneous_model = False
         else:
             for load in self.model["load"]:
                 if isinstance(load, str):
@@ -207,24 +208,21 @@ class solver:
                 self.gKr = np.delete(self.gKr, i, 1)
                 self.f = np.delete(self.f, i)   
             else:
-                u_temp.append(self.u[i])
-        u_temp.reverse()
-
-        '''
-        for i in range(len(self.f)):
-            if abs(self.f[i]) < 1e-75:
-                self.f[i] = 0
-        '''
-
-        if np.sum(self.f) == 0:
-            for i in range(len(u_temp)):
-                if u_temp[i] == '*':
-                    u_temp[i] = 0
-            self.f = np.matmul(self.gKr, u_temp)
-        for i in range(len(u_temp)):
-            if u_temp[i] == 0:
-                self.f[i] = 0
-
+                u_temp.insert(0, self.u[i])
+    
+        if not self.homogeneous_model:
+            if np.sum(self.f) == 0:
+                for i in range(len(u_temp)):
+                    if u_temp[i] == '*':
+                        u_temp[i] = 0
+                self.f = np.matmul(self.gKr, u_temp)
+                for i in range(len(u_temp)-1, -1, -1):
+                    if u_temp[i] != 0:
+                        del self.matrix_headers_r[i]
+                        self.gKr = np.delete(self.gKr, i, 0)
+                        self.gKr = np.delete(self.gKr, i, 1)
+                        self.f = np.delete(self.f, i)   
+            
 
     def compute_dispalcements(self):
         self.displacements = np.linalg.solve(self.gKr, self.f)
@@ -239,7 +237,10 @@ class solver:
                 offset = 1
 
             index = (node * 2) - offset
-            self.u[index] = result
+            if self.homogeneous_model:
+                self.u[index] = result
+            elif not self.homogeneous_model:
+                self.u[index] = result * -1
 
         
     def compute_normal_stress(self):
@@ -273,14 +274,19 @@ class solver:
             s1 = ((Sx + Sy)/2)+m.sqrt(((Sx-Sy)/2)**2+Sxy**2)
             s2 = ((Sx + Sy)/2)-m.sqrt(((Sx-Sy)/2)**2+Sxy**2)
             s12 = m.sqrt(((Sx-Sy)/2)**2+Sxy**2)
-            try:
-                angle = -0.5*m.atan((2*Sxy)/(Sx-Sy))
-                opp = m.sin(angle)*s1
-                adj = m.cos(angle)*s1
-            except:
+            if Sx == Sy:
                 angle = 0
                 opp = 0
                 adj = s1
+            else: 
+                try:
+                    angle = -0.5*m.atan((2*Sxy)/(Sx-Sy))
+                    opp = m.sin(angle)*s1
+                    adj = m.cos(angle)*s1
+                except:
+                    angle = 0
+                    opp = 0
+                    adj = s1
             self.principal_stress_results.append([s[0], s1, s2, s12, angle, opp, adj]) 
 
 
@@ -307,10 +313,11 @@ if __name__ == "__main__":
     s.define_load()
     pp.pprint(s.__dict__['u'])
     pp.pprint(s.__dict__['f'])
-    #pp.pprint(s.__dict__['gK'])
+    pp.pprint(s.__dict__['gK'])
     s.reduce_matrix()
     pp.pprint(s.__dict__['u'])
     pp.pprint(s.__dict__['f'])
+    pp.pprint(s.__dict__['gKr'])
     s.compute_dispalcements()
     #s.compute_normal_stress()
     #s.compute_principal_stress()
@@ -318,10 +325,10 @@ if __name__ == "__main__":
 
     #pp.pprint(s.__dict__.keys())
     pp.pprint(s.__dict__['u'])
-    pp.pprint(s.__dict__['f'])
-    pp.pprint(s.__dict__['displacements'])
+    #pp.pprint(s.__dict__['f'])
+    #pp.pprint(s.__dict__['displacements'])
 
-    test = np.matmul(s.__dict__['gK'], np.array(s.__dict__['u']))
-    dis = np.linalg.solve(s.__dict__['gK'], test)
-    print(test)
-    print(dis)
+    #test = np.matmul(s.__dict__['gK'], np.array(s.__dict__['u']))
+    #dis = np.linalg.solve(s.__dict__['gK'], test)
+    #print(test)
+    #print(dis)
