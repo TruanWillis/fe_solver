@@ -22,9 +22,9 @@ if __name__ == '__main__':
     #print(tabulate(s.normal_stress_results, tablefmt="grid", stralign="center", headers=["el", "s1", "s2", "s12"]))
     #print(tabulate(s.principal_stress_results, tablefmt="grid", stralign="center", headers=["el", "s_max", "s_min", "s_shear", "A", "Opp", "Adj"]))
     #print(tabulate(s.mises_stress_results, tablefmt="grid", stralign="center", headers=["el", "mises"]))
-    print(tabulate(s.norm_stress_df, tablefmt="grid", numalign="right", headers=s.norm_stress_df.columns))
-    print(tabulate(s.princ_stress_df, tablefmt="grid", numalign="right", headers=s.princ_stress_df.columns))
-    print(tabulate(s.mises_stress_df, tablefmt="grid", numalign="right", headers=s.mises_stress_df.columns))
+    print(tabulate(s.norm_stress_df.head(), tablefmt="grid", numalign="right", headers=s.norm_stress_df.columns))
+    print(tabulate(s.princ_stress_df.head(), tablefmt="grid", numalign="right", headers=s.princ_stress_df.columns))
+    print(tabulate(s.mises_stress_df.head(), tablefmt="grid", numalign="right", headers=s.mises_stress_df.columns))
     
     plot.plot_results(model, s, 2)
   

@@ -6,8 +6,11 @@ import matplotlib.cm as cm
 def plot_results(model, s, scale):
     print("Plotting results......")
 
-    mises = s.mises_stress_results
-    u = s.u
+    #mises = s.mises_stress_results
+    #u = s.u
+
+    mises = s.mises_stress_df['s_mises'].tolist()
+    u = s.u_ds.tolist()
 
     nodes = []
     for node in model["nodes"]:
@@ -28,9 +31,10 @@ def plot_results(model, s, scale):
             node_list[i] = node_list[i]-1
         elements.append(node_list)
 
-    values_s = []
-    for value in mises:
-        values_s.append(value[1]) 
+    #values_s = []
+    values_s = mises
+    #for value in mises:
+    #    values_s.append(value[1]) 
     values_u = []
     for i in range(0, len(u), 2):
         value = m.sqrt(u[i]**2 + u[i+1]**2)
@@ -53,16 +57,20 @@ def plot_results(model, s, scale):
         v_x.append([x_])
         v_y.append([y_])
 
+    '''
     v_s = []
     v_u = []
     v_v = []
-
 
     for stress in s.principal_stress_results:
         v_s.append(stress[1])
         v_u.append(stress[5])
         v_v.append(stress[6])
+    '''
 
+    v_s = s.princ_stress_df['s_max'].tolist()
+    v_u = s.princ_stress_df['opp'].tolist()
+    v_v = s.princ_stress_df['adj'].tolist()
     
     nodes = np.array(nodes)
     nodes_d = np.array(nodes_d)
