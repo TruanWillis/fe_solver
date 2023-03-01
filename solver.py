@@ -314,15 +314,20 @@ class solver:
         #print(self.gKr_df)
     
         if not self.homogeneous_model:
+            #u_temp_ds.convert_dtypes()
             #print(u_temp_ds) 
             #f = self.gKr_df.dot(u_temp_ds)
-            self.f_ds = self.gKr_df.dot(u_temp)
+            self.f_ds = self.gKr_df.dot(u_temp_ds)
+            #self.f_ds.convert_dtypes()
             #print(f)
             
             for index, u in u_temp_ds.items():
                 if u != 0:
                     self.gKr_df.drop(index=index, columns=index, inplace=True)
                     self.f_ds.drop(labels=index, inplace=True)   
+        
+        print(self.f)
+        print(self.f_ds.dtypes)
             
 
     def compute_dispalcements(self):
@@ -345,6 +350,8 @@ class solver:
 
         gKr = self.gKr_df.to_numpy()
         f = self.f_ds.to_numpy()
+        gKr = gKr.astype('float64')
+        f = f.astype('float64')
         disp = np.linalg.solve(gKr, f)
         self.disp_ds = pd.Series(disp, index=self.f_ds.index)
         for index, u in self.disp_ds.items():

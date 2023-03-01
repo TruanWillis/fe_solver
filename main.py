@@ -5,7 +5,7 @@ from tabulate import tabulate
 
 
 if __name__ == '__main__':
-    inp = load_inp.load_inp("Job-7.inp")
+    inp = load_inp.load_inp("Job-6.inp")
     model = load_inp.call_gen_function(inp)
     s = solver.solver(model)
     s.define_element_stiffness()
