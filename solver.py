@@ -11,21 +11,14 @@ class cst_element:
         self.y_cord = [float(y) for y in y_cord]
         self.node_list = node_list
 
-        self.node_headings = []
-        for n in self.node_list:
-            for disp in ['u', 'v']:
-                self.node_headings.append(str(n) + disp)
-
         self.E = float(E)
         self.v = float(v)
         self.t = float(t)
-        self.dof = len(node_list) * 2
         
         self.calculate_area()
         self.strain_displacement_matrix()
         self.stress_strain_matirx()
-        self.stiffness_matrix()
-        self.intialise_displacement()    
+        self.stiffness_matrix() 
 
 
     def calculate_area(self):
@@ -69,16 +62,16 @@ class cst_element:
         Bt = self.B.transpose()
         eK = np.matmul(Bt, np.matmul(self.D, self.B)) * self.area * self.t 
 
+        node_headings = []
+        for node in self.node_list:
+            for displacement in ['u', 'v']:
+                node_headings.append(str(node) + displacement)
+
         self.eK_df = pd.DataFrame(
             eK,
-            columns=self.node_headings,
-            index=self.node_headings
+            columns=node_headings,
+            index=node_headings
         )
-
-
-    def intialise_displacement(self):
-        self.u = np.zeros(len(self.node_list))
-        self.v = np.zeros(len(self.node_list))
 
 
 class solver:
