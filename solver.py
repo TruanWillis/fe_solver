@@ -1,4 +1,4 @@
-import load_inp
+import model
 import numpy as np
 import math as m
 import pandas as pd
@@ -301,8 +301,8 @@ class solver:
 
 if __name__ == "__main__":
     pp = pprint.PrettyPrinter(indent=4)
-    inp = load_inp.load_inp("inp/Job-6.inp")
-    model = load_inp.call_gen_function(inp)
+    inp = model.load_inp("inp/Job-6.inp")
+    model = model.call_gen_function(inp)
     s = solver(model)
 
     #pp.pprint(s.__dict__.keys())

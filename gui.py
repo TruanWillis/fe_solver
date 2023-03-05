@@ -4,16 +4,17 @@ from tkinter.messagebox import showinfo
 
 import os, timeit
 
-import load_inp
+import model
 import solver
 import plot
 
 class gui():
     def __init__(self, root, version, disclaimer, solver_print_head):
+        self.version = version
         self.solver_print_head = solver_print_head
         root.title("FEsolver " + str(version))
         root.geometry("450x600")
-        icon = tk.PhotoImage(file=os.path.dirname(os.path.realpath(__file__)) + "/media/icon_png.png")
+        icon = tk.PhotoImage(file=os.path.dirname(os.path.realpath(__file__)) + "/media/icon.png")
         root.iconphoto(True, icon)
 
         frame = tk.Frame(root)
@@ -101,8 +102,8 @@ class gui():
     def model_load(self):
         self.writeToLog("Generating model " + self.inp_name + "...")
         try:
-            inp = load_inp.load_inp(self.dir_name + "/" + self.inp_name)
-            self.model = load_inp.call_gen_function(inp)
+            inp = model.load_inp(self.dir_name + "/" + self.inp_name)
+            self.model = model.call_gen_function(inp)
             self.writeToLog("Nodes: " + str(self.model["node count"]))
             self.writeToLog("Elements: " + str(self.model["element count"]))
             self.writeToLog("DOF: " + str(self.model["dof"]))
@@ -122,7 +123,7 @@ class gui():
             self.s = solver.solver(self.model, self.solver_print_head)
             self.solver_end = timeit.default_timer()
             duration = self.solver_end - self.solver_start
-            self.writeToLog("...complete [{:.3f}]".format(duration))
+            self.writeToLog("...complete [{:.3f}s]".format(duration))
         except Exception as e:
             self.writeToLog(str(e))
 
@@ -130,7 +131,7 @@ class gui():
     def plot_results(self):    
         self.writeToLog("Ploting results "  + self.inp_name + ", close to continue...")
         try:
-            plot.plot_results(self.model, self.s, 2)
+            plot.plot_results(self.model, self.s, 2, self.version)
             self.writeToLog("...closed")
         except Exception as e:
             self.writeToLog(str(e))
