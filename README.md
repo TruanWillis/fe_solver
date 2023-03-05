@@ -1,3 +1,3 @@
-# openFEM
+# FEsolver
 
 Finite element analysis code.
