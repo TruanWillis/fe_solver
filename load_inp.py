@@ -32,12 +32,10 @@ class gen_model:
 
     def strip_input(self, input):
         output = [value.replace(" ", "") for value in input]
-        #print(input, output)
         return output
 
 
-    def gen_element(self, input):
-        print(f"Generating elements...")    
+    def gen_element(self, input): 
         element_type = input[0].split("=")[1].lower()
         for line in input[1:]:
             split_line = line.split(",")
@@ -48,7 +46,8 @@ class gen_model:
                 node_list.append(int(split_line[node]))
             self.model["elements"][element]["nodes"] = node_list
             self.model["elements"][element]["type"] = element_type
-        print("Complete")
+        self.element_count = len(self.model["elements"].keys())
+    
 
     def gen_node(self, input):
         for line in input[1:]:
@@ -57,7 +56,9 @@ class gen_model:
                 float(split_line[1]),
                 float(split_line[2]),
             ]
-
+        self.node_count = len(self.model["nodes"].keys())
+        self.dof = self.node_count * 2
+        
 
     def gen_node_set(self, input):
         split_first_line = input[0].split(",")
@@ -174,14 +175,13 @@ def call_gen_function(inp_lines):
 
 
 def load_inp(file):
-    #with open(wk_dir + '/' + file) as inp_file:
     with open(file) as inp_file:
         inp_lines = inp_file.readlines()
     return inp_lines
 
 
 if __name__ == "__main__":
-    inp_file = load_inp("inp/Job-3.inp")
+    inp_file = load_inp(wk_dir + "/Job-3.inp")
     model = call_gen_function(inp_file)
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(model)

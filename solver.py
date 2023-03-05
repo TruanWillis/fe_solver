@@ -63,9 +63,9 @@ class cst_element:
         eK = np.matmul(Bt, np.matmul(self.D, self.B)) * self.area * self.t 
 
         node_headings = []
-        for node in self.node_list:
+        for n in self.node_list:
             for displacement in ['u', 'v']:
-                node_headings.append(str(node) + displacement)
+                node_headings.append(str(n) + displacement)
 
         self.eK_df = pd.DataFrame(
             eK,
@@ -84,8 +84,8 @@ class solver:
 
         self.node_headings = []
         for n in range(1, int((self.dof/2)+1)):
-            for disp in ['u', 'v']:
-                self.node_headings.append(str(n) + disp)
+            for displacement in ['u', 'v']:
+                self.node_headings.append(str(n) + displacement)
 
         self.f_ds = pd.Series(
             self.f,
@@ -97,18 +97,28 @@ class solver:
             index=self.node_headings
         )
 
+        self.define_element_stiffness()
+        self.define_global_stiffness()
+        self.define_boundary()
+        self.define_load()
+        self.reduce_matrix()
+        self.compute_dispalcements()
+        self.compute_normal_stress()
+        self.compute_principal_stress()
+        self.compute_mises_stress()
+
 
     def define_boundary(self):
         for boundary in self.model["boundary"]:
             if isinstance(boundary, str):
                 node_list = self.model["nodesets"][boundary]
                 for axis in self.model["boundary"][boundary].keys():
-                    for node in node_list:
+                    for n in node_list:
                         if axis == "1":
                             disp = 'u'
                         elif axis == "2":
                             disp = 'v'
-                        self.u_ds._set_value(str(node)+disp, self.model["boundary"][boundary][axis])
+                        self.u_ds._set_value(str(n)+disp, self.model["boundary"][boundary][axis])
         
 
     def define_load(self):
@@ -119,12 +129,12 @@ class solver:
                 if isinstance(load, str):
                     node_list = self.model["nodesets"][load]
                     for axis in self.model["load"][load].keys():
-                        for node in node_list:
+                        for n in node_list:
                             if axis == "1":
                                 disp = 'u'
                             elif axis == "2":
                                 disp = 'v'
-                            self.f_ds._set_value(str(node)+disp, self.model["load"][load][axis])
+                            self.f_ds._set_value(str(n)+disp, self.model["load"][load][axis])
 
 
     def define_element_stiffness(self):
@@ -191,10 +201,13 @@ class solver:
     def compute_dispalcements(self):
         gKr = self.gKr_df.to_numpy()
         f = self.f_ds.to_numpy()
+
         gKr = gKr.astype('float64')
         f = f.astype('float64')
+
         disp = np.linalg.solve(gKr, f)
         self.disp_ds = pd.Series(disp, index=self.f_ds.index)
+        
         for index, u in self.disp_ds.items():
             self.u_ds._set_value(index, u*-1)
 
@@ -273,19 +286,9 @@ class solver:
 
 if __name__ == "__main__":
     pp = pprint.PrettyPrinter(indent=4)
-    inp = load_inp.load_inp("Job-6.inp")
+    inp = load_inp.load_inp("inp/Job-6.inp")
     model = load_inp.call_gen_function(inp)
     s = solver(model)
-    
-    s.define_element_stiffness()
-    s.define_global_stiffness()
-    s.define_boundary()
-    s.define_load()
-    s.reduce_matrix()
-    s.compute_dispalcements()
-    s.compute_normal_stress()
-    s.compute_principal_stress()
-    s.compute_mises_stress()
 
     #pp.pprint(s.__dict__.keys())
     #pp.pprint(s.__dict__['disp_ds'])
