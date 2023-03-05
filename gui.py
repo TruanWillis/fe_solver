@@ -9,10 +9,10 @@ import solver
 import plot
 
 class gui():
-    def __init__(self, root, version, disclaimer, solver_print_head):
-        self.version = version
-        self.solver_print_head = solver_print_head
-        root.title("FEsolver " + str(version))
+    def __init__(self, root, config):
+        self.config = config
+        
+        root.title("FEsolver " + self.config["version"])
         root.geometry("450x600")
         icon = tk.PhotoImage(file=os.path.dirname(os.path.realpath(__file__)) + "/media/icon.png")
         root.iconphoto(True, icon)
@@ -27,7 +27,7 @@ class gui():
 
         dir_button = tk.Button(frame, textvariable=self.dir_name_text, command=self.select_dir)
         inp_button = tk.Button(frame, textvariable=self.inp_name_text, command=self.select_inp)
-        model_button = tk.Button(frame, text='Generate model', command=self.model_load)
+        model_button = tk.Button(frame, text='Generate model', command=self.model_generate)
         solve_button = tk.Button(frame, text='Solve model', command=self.model_solve)
         plot_button = tk.Button(frame, text='Plot results', command=self.plot_results)
         quit_button = tk.Button(frame, text="Quit", command=root.destroy)
@@ -42,7 +42,7 @@ class gui():
         quit_button.pack(fill="both", expand=True)
         self.log.pack(fill="both", expand=True)
 
-        self.writeToLog(disclaimer)
+        self.writeToLog(self.config["disclaimer"])
 
     def writeToLog(self, msg):
         numlines = int(self.log.index('end - 1 line').split('.')[0])
@@ -67,7 +67,7 @@ class gui():
         )    
         '''
         
-        self.dir_name_text.set("..." + self.dir_name[-20:])
+        self.dir_name_text.set("..." + self.dir_name[-25:])
         self.writeToLog("Working directory selected...")
         self.writeToLog(self.dir_name)
 
@@ -99,11 +99,11 @@ class gui():
         self.writeToLog(self.inp_name)
 
 
-    def model_load(self):
+    def model_generate(self):
         self.writeToLog("Generating model " + self.inp_name + "...")
         try:
-            inp = model.load_inp(self.dir_name + "/" + self.inp_name)
-            self.model = model.call_gen_function(inp)
+            input = model.load_input(self.dir_name + "/" + self.inp_name)
+            self.model = model.call_gen_function(input)
             self.writeToLog("Nodes: " + str(self.model["node count"]))
             self.writeToLog("Elements: " + str(self.model["element count"]))
             self.writeToLog("DOF: " + str(self.model["dof"]))
@@ -120,7 +120,7 @@ class gui():
 
     def call_solver(self):
         try:
-            self.s = solver.solver(self.model, self.solver_print_head)
+            self.s = solver.solver(self.model, self.config["print_head"])
             self.solver_end = timeit.default_timer()
             duration = self.solver_end - self.solver_start
             self.writeToLog("...complete [{:.3f}s]".format(duration))
@@ -131,15 +131,15 @@ class gui():
     def plot_results(self):    
         self.writeToLog("Ploting results "  + self.inp_name + ", close to continue...")
         try:
-            plot.plot_results(self.model, self.s, 2, self.version)
+            plot.plot_results(self.model, self.s, self.config["scale"], self.config["version"])
             self.writeToLog("...closed")
         except Exception as e:
             self.writeToLog(str(e))
 
 
-def run(version, disclaimer, solver_print_head):
+def run(config):
     root=tk.Tk()
-    gui(root, version, disclaimer, solver_print_head)
+    gui(root, config)
     root.mainloop()
 
 
