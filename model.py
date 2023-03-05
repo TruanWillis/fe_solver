@@ -16,7 +16,7 @@ keywords = {
 }
 
 
-class gen_model:
+class generateModel:
     def __init__(self):
         self.model={}
         self.model["elements"] = {}
@@ -156,17 +156,17 @@ class gen_model:
                 self.model["load"][node][values[1]] = float(values[2])
                 
 
-def call_gen_function(inp_lines):
-    model = gen_model()
+def call_gen_function(inp_file):
+    model = generateModel()
     line_count = 0
-    for line in inp_lines:
+    for line in inp_file:
         if line[0] == '*' and line[1] != '*':
             keyword = line.split("*")[1].split(",")[0].strip("\n").lower()
             if keyword in keywords.keys():
                 keyword_inputs = [line.strip('\n')]
                 line_count_temp = line_count + 1
-                while "*" not in inp_lines[line_count_temp]:
-                    keyword_inputs.append(inp_lines[line_count_temp].strip('\n'))
+                while "*" not in inp_file[line_count_temp]:
+                    keyword_inputs.append(inp_file[line_count_temp].strip('\n'))
                     line_count_temp += 1
                 function = getattr(model, keywords[keyword])
                 function(keyword_inputs)
@@ -174,14 +174,14 @@ def call_gen_function(inp_lines):
     return model.__dict__["model"]
 
 
-def load_inp(file):
-    with open(file) as inp_file:
-        inp_lines = inp_file.readlines()
-    return inp_lines
+def load_input(file):
+    with open(file) as input_file:
+        input_lines = input_file.readlines()
+    return input_lines
 
 
 if __name__ == "__main__":
-    inp_file = load_inp(wk_dir + "/Job-3.inp")
-    model = call_gen_function(inp_file)
+    input_file = load_input(wk_dir + "/inp/Job-3.inp")
+    model = call_gen_function(input_file)
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(model)
