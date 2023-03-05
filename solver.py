@@ -4,6 +4,9 @@ import math as m
 import pandas as pd
 import pprint
 from tabulate import tabulate
+import os
+
+wk_dir = os.path.dirname(os.path.realpath(__file__))
 
 
 class cst_element:
@@ -301,9 +304,9 @@ class solver:
 
 if __name__ == "__main__":
     pp = pprint.PrettyPrinter(indent=4)
-    inp = model.load_inp("inp/Job-6.inp")
-    model = model.call_gen_function(inp)
-    s = solver(model)
+    input = model.load_input(wk_dir + "/inp/Job-6.inp")
+    model = model.call_gen_function(input)
+    s = solver(model, True)
 
-    #pp.pprint(s.__dict__.keys())
-    #pp.pprint(s.__dict__['disp_ds'])
+    pp.pprint(s.__dict__.keys())
+    pp.pprint(s.__dict__['disp_ds'])

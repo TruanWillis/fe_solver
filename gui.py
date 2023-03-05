@@ -143,11 +143,11 @@ def run(config):
     root.mainloop()
 
 
-def main():
-    root=tk.Tk()
-    gui(root)
-    root.mainloop()
-
-
 if __name__=="__main__":
-    main()
+    root=tk.Tk()
+    gui(
+        root,
+        {"version":"0.0.0",
+        "disclaimer":""}
+        )
+    root.mainloop()
