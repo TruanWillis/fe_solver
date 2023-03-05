@@ -36,7 +36,8 @@ class gen_model:
         return output
 
 
-    def gen_element(self, input):    
+    def gen_element(self, input):
+        print(f"Generating elements...")    
         element_type = input[0].split("=")[1].lower()
         for line in input[1:]:
             split_line = line.split(",")
@@ -47,7 +48,7 @@ class gen_model:
                 node_list.append(int(split_line[node]))
             self.model["elements"][element]["nodes"] = node_list
             self.model["elements"][element]["type"] = element_type
-
+        print("Complete")
 
     def gen_node(self, input):
         for line in input[1:]:
@@ -173,7 +174,8 @@ def call_gen_function(inp_lines):
 
 
 def load_inp(file):
-    with open(wk_dir + '/' + file) as inp_file:
+    #with open(wk_dir + '/' + file) as inp_file:
+    with open(file) as inp_file:
         inp_lines = inp_file.readlines()
     return inp_lines
 

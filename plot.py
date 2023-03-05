@@ -3,6 +3,7 @@ import math as m
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
+
 def plot_results(model, s, scale):
     print("Plotting results......")
 
@@ -74,7 +75,9 @@ def plot_results(model, s, scale):
     axs[0].set_title("U [Magnitude]", y = -0.07)
     axs[1].set_title("S [von Mises]", y = -0.07)
     axs[2].set_title("S [Max Principal]", y = -0.07)
-    fig.colorbar(u_plot, ax=axs[0])
-    fig.colorbar(s_plot, ax=axs[1])
-    fig.colorbar(v_plot, ax=axs[2])
+    fig.colorbar(u_plot, ax=axs[0], format='%.0e')
+    fig.colorbar(s_plot, ax=axs[1], format='%.0e')
+    fig.colorbar(v_plot, ax=axs[2], format='%.0e')
+    plt.tight_layout()
+    #plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
     plt.show()
