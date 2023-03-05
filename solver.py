@@ -3,6 +3,7 @@ import numpy as np
 import math as m
 import pandas as pd
 import pprint
+from tabulate import tabulate
 
 
 class cst_element:
@@ -75,7 +76,7 @@ class cst_element:
 
 
 class solver:
-    def __init__(self, model):
+    def __init__(self, model, solver_print_head):
         self.model = model
         self.dof = len(self.model["nodes"].keys()) * 2
         self.u = ['*']*self.dof
@@ -106,6 +107,9 @@ class solver:
         self.compute_normal_stress()
         self.compute_principal_stress()
         self.compute_mises_stress()
+
+        if solver_print_head:
+            self.print_results()
 
 
     def define_boundary(self):
@@ -210,7 +214,7 @@ class solver:
         
         for index, u in self.disp_ds.items():
             self.u_ds._set_value(index, u*-1)
-
+        
         
     def compute_normal_stress(self):
         elements = self.model["elements"].keys()
@@ -283,6 +287,17 @@ class solver:
             mises = m.sqrt(sigma_1**2 - sigma_1 * sigma_2 + sigma_2**2 + 3 * sigma_12**2)
             self.mises_stress_df.loc[index] = mises
 
+
+    def print_results(self):
+        #print("Displacement...")
+        #print(tabulate(self.disp_ds.head(), tablefmt="grid", numalign="right", headers=self.disp_ds.index))
+        print("\n" + "In-plane stress...")
+        print(tabulate(self.norm_stress_df.head(), tablefmt="grid", numalign="right", headers=self.norm_stress_df.columns))
+        print("\n" + "Principal stress...")
+        print(tabulate(self.princ_stress_df.head(), tablefmt="grid", numalign="right", headers=self.princ_stress_df.columns))       
+        print("\n" + "Mises stress...")
+        print(tabulate(self.mises_stress_df.head(), tablefmt="grid", numalign="right", headers=self.mises_stress_df.columns))
+        
 
 if __name__ == "__main__":
     pp = pprint.PrettyPrinter(indent=4)

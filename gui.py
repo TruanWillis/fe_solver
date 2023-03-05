@@ -9,9 +9,13 @@ import solver
 import plot
 
 class gui():
-    def __init__(self, root):
-        root.title("openFEM 0.0.1")
-        root.geometry("400x600")
+    def __init__(self, root, version, disclaimer, solver_print_head):
+        self.solver_print_head = solver_print_head
+        root.title("FEsolver " + str(version))
+        root.geometry("450x600")
+        icon = tk.PhotoImage(file=os.path.dirname(os.path.realpath(__file__)) + "/media/icon_png.png")
+        root.iconphoto(True, icon)
+
         frame = tk.Frame(root)
 
         self.dir_name_text = tk.StringVar()
@@ -37,6 +41,7 @@ class gui():
         quit_button.pack(fill="both", expand=True)
         self.log.pack(fill="both", expand=True)
 
+        self.writeToLog(disclaimer)
 
     def writeToLog(self, msg):
         numlines = int(self.log.index('end - 1 line').split('.')[0])
@@ -98,9 +103,9 @@ class gui():
         try:
             inp = load_inp.load_inp(self.dir_name + "/" + self.inp_name)
             self.model = load_inp.call_gen_function(inp)
-            self.writeToLog("Nodes: " + str(self.model.__dict__["node_count"]))
-            self.writeToLog("Elements: " + str(self.model.__dict__["element_count"]))
-            self.writeToLog("DOF: " + str(self.model.__dict__["dof"]))
+            self.writeToLog("Nodes: " + str(self.model["node count"]))
+            self.writeToLog("Elements: " + str(self.model["element count"]))
+            self.writeToLog("DOF: " + str(self.model["dof"]))
             self.writeToLog("...complete")
         except Exception as e:
             self.writeToLog(str(e))
@@ -114,7 +119,7 @@ class gui():
 
     def call_solver(self):
         try:
-            self.s = solver.solver(self.model)
+            self.s = solver.solver(self.model, self.solver_print_head)
             self.solver_end = timeit.default_timer()
             duration = self.solver_end - self.solver_start
             self.writeToLog("...complete [{:.3f}]".format(duration))
@@ -131,9 +136,9 @@ class gui():
             self.writeToLog(str(e))
 
 
-def run():
+def run(version, disclaimer, solver_print_head):
     root=tk.Tk()
-    gui(root)
+    gui(root, version, disclaimer, solver_print_head)
     root.mainloop()
 
 

@@ -46,7 +46,7 @@ class gen_model:
                 node_list.append(int(split_line[node]))
             self.model["elements"][element]["nodes"] = node_list
             self.model["elements"][element]["type"] = element_type
-        self.element_count = len(self.model["elements"].keys())
+        self.model["element count"] = int(len(self.model["elements"].keys()))
     
 
     def gen_node(self, input):
@@ -56,8 +56,8 @@ class gen_model:
                 float(split_line[1]),
                 float(split_line[2]),
             ]
-        self.node_count = len(self.model["nodes"].keys())
-        self.dof = self.node_count * 2
+        self.model["node count"] = int(len(self.model["nodes"].keys()))
+        self.model["dof"] = int(len(self.model["nodes"].keys()) * 2)
         
 
     def gen_node_set(self, input):
