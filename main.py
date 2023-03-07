@@ -2,6 +2,7 @@ import gui
 
 if __name__ == '__main__':
     config = {
+        "name":"FEsolver",
         "version":"0.0.1",
         "disclaimer":(
         "FEsolver is a non-commercial finite element solver. "

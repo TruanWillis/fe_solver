@@ -10,9 +10,11 @@ import plot
 
 class gui():
     def __init__(self, root, config):
-        self.config = config
-        
-        root.title("FEsolver " + self.config["version"])
+        self.window_name = config["name"] + " " + config["version"]
+        self.scale = config["scale"]
+        self.print_head = config["print_head"]
+
+        root.title(self.window_name)
         root.geometry("450x600")
         icon = tk.PhotoImage(file=os.path.dirname(os.path.realpath(__file__)) + "/media/icon.png")
         root.iconphoto(True, icon)
@@ -42,7 +44,7 @@ class gui():
         quit_button.pack(fill="both", expand=True)
         self.log.pack(fill="both", expand=True)
 
-        self.writeToLog(self.config["disclaimer"])
+        self.writeToLog(config["disclaimer"])
 
     def writeToLog(self, msg):
         numlines = int(self.log.index('end - 1 line').split('.')[0])
@@ -120,7 +122,7 @@ class gui():
 
     def call_solver(self):
         try:
-            self.s = solver.solver(self.model, self.config["print_head"])
+            self.s = solver.solver(self.model, self.print_head)
             self.solver_end = timeit.default_timer()
             duration = self.solver_end - self.solver_start
             self.writeToLog("...complete [{:.3f}s]".format(duration))
@@ -131,7 +133,7 @@ class gui():
     def plot_results(self):    
         self.writeToLog("Ploting results "  + self.inp_name + ", close to continue...")
         try:
-            plot.plot_results(self.model, self.s, self.config["scale"], self.config["version"])
+            plot.plot_results(self.model, self.s, self.scale, self.window_name)
             self.writeToLog("...closed")
         except Exception as e:
             self.writeToLog(str(e))

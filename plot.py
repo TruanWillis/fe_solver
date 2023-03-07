@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
 
-def plot_results(model, s, scale, version):
+def plot_results(model, s, scale, window_name):
     print("Plotting results......")
 
     mises = s.mises_stress_df['s_mises'].tolist()
@@ -61,7 +61,7 @@ def plot_results(model, s, scale, version):
     x, y = nodes.T
     x_d, y_d = nodes_d.T
     
-    fig, axs = plt.subplots(1, 3, num="FEsolver " + str(version))
+    fig, axs = plt.subplots(1, 3, num=window_name)
     u_plot = axs[0].tripcolor(x_d, y_d, elements, values_u, edgecolors='k', cmap="rainbow")
     s_plot = axs[1].tripcolor(x_d, y_d, elements, values_s, edgecolors='k', cmap="rainbow")
     v_plot = axs[2].quiver(v_x, v_y, v_u, v_v, v_s, cmap="rainbow")
