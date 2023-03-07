@@ -79,12 +79,15 @@ class cst_element:
 
 
 class solver:
-    def __init__(self, model, solver_print_head):
+    def __init__(self, model, print_head, save_matrix, out_dir):
         self.model = model
         self.dof = len(self.model["nodes"].keys()) * 2
         self.u = ['*']*self.dof
         self.f = np.zeros(self.dof)
+        
         self.homogeneous_model = True
+        self.save_matrix = save_matrix
+        self.out_dir = out_dir
 
         self.node_headings = []
         for n in range(1, int((self.dof/2)+1)):
@@ -111,7 +114,7 @@ class solver:
         self.compute_principal_stress()
         self.compute_mises_stress()
 
-        if solver_print_head:
+        if print_head:
             self.print_results()
 
 
@@ -172,6 +175,9 @@ class solver:
             index=self.node_headings
         )
 
+        if self.save_matrix:
+            self.gK_ident_df = self.gK_df.copy()
+
         for e in self.model["elements"]:
             eK_df = self.model["elements"][e]['K'].__dict__["eK_df"]
 
@@ -179,6 +185,17 @@ class solver:
                 for index, row in eK_df.iterrows():
                     value = self.gK_df._get_value(index, column) + eK_df._get_value(index, column)
                     self.gK_df._set_value(index, column, value)
+                    
+                    if self.save_matrix:
+                        ident = self.gK_ident_df._get_value(index, column)
+                        if ident == 0:
+                            ident = "e" + str(e)
+                        else:
+                            ident = ident + ", e" + str(e)    
+                        self.gK_ident_df._set_value(index, column, ident)
+
+        if self.save_matrix:
+            self.gK_ident_df.to_csv(self.out_dir + "/stiffness_matrix.csv")
 
 
     def reduce_matrix(self):
@@ -304,9 +321,9 @@ class solver:
 
 if __name__ == "__main__":
     pp = pprint.PrettyPrinter(indent=4)
-    input = model.load_input(wk_dir + "/inp/Job-6.inp")
+    input = model.load_input(wk_dir + "/inp/Job-7.inp")
     model = model.call_gen_function(input)
-    s = solver(model, True)
+    s = solver(model, True, True, wk_dir + "/")
 
-    pp.pprint(s.__dict__.keys())
-    pp.pprint(s.__dict__['disp_ds'])
+    #pp.pprint(s.__dict__.keys())
+    #pp.pprint(s.__dict__['disp_ds'])

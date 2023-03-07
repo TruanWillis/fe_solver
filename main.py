@@ -9,6 +9,7 @@ if __name__ == '__main__':
         "The program is distributed with no warranty."
         ),
         "print_head":True,
+        "save_matrix":True,
         "scale":2
     }
 

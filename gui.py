@@ -13,6 +13,7 @@ class gui():
         self.window_name = config["name"] + " " + config["version"]
         self.scale = config["scale"]
         self.print_head = config["print_head"]
+        self.save_matrix = config["save_matrix"]
 
         root.title(self.window_name)
         root.geometry("450x600")
@@ -122,7 +123,7 @@ class gui():
 
     def call_solver(self):
         try:
-            self.s = solver.solver(self.model, self.print_head)
+            self.s = solver.solver(self.model, self.print_head, self.save_matrix, self.dir_name)
             self.solver_end = timeit.default_timer()
             duration = self.solver_end - self.solver_start
             self.writeToLog("...complete [{:.3f}s]".format(duration))
@@ -149,7 +150,8 @@ if __name__=="__main__":
     root=tk.Tk()
     gui(
         root,
-        {"version":"0.0.0",
+        {"name":"Test",
+        "version":"0.0.0",
         "disclaimer":""}
         )
     root.mainloop()
