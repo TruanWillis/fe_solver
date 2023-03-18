@@ -64,7 +64,6 @@ def plot_results(model, solution, deformation_scale, window_name):
     stress_principal_y_opp = [y * -1 for y in stress_principal_y]
     
     node_array = np.array(node_coordinates)
-    element_array = np.array(element_list)
     node_coordinates_x, node_coordinates_y = node_array.T
     
     fig, axs = plt.subplots(1, 3, num=window_name)
@@ -72,7 +71,7 @@ def plot_results(model, solution, deformation_scale, window_name):
     displacement_plot = axs[0].tripcolor(
         node_coordinates_x, 
         node_coordinates_y, 
-        element_array,  
+        element_list,  
         displacement_mag, 
         edgecolors='k', 
         cmap="rainbow"
@@ -85,7 +84,7 @@ def plot_results(model, solution, deformation_scale, window_name):
     stress_mises_plot = axs[1].tripcolor(
         node_coordinates_x, 
         node_coordinates_y, 
-        element_array, 
+        element_list, 
         stress_mises,
         edgecolors='k', 
         cmap="rainbow"
@@ -116,7 +115,7 @@ def plot_results(model, solution, deformation_scale, window_name):
     axs[2].triplot(
         node_coordinates_x, 
         node_coordinates_y, 
-        element_array, 
+        element_list, 
         linewidth=0.2, 
         color='black'
     )
