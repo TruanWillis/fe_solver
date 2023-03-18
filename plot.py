@@ -7,8 +7,8 @@ import matplotlib.cm as cm
 def plot_results(model, solution, deformation_scale, window_name):
     print("Plotting results......")
 
-    stress_mises = solution.mises_stress_df['s_mises'].tolist()
-    displacements = solution.u_ds.tolist()
+    stress_mises = solution.stress_mises['s_mises'].tolist()
+    displacements = solution.displacements.tolist()
 
     displacement_mag = []
     for i in range(0, len(displacements), 2):
@@ -57,9 +57,9 @@ def plot_results(model, solution, deformation_scale, window_name):
         element_coordinates_x.append([element_centre_x])
         element_coordinates_y.append([element_centre_y])
 
-    stress_principal = solution.princ_stress_df['s_max'].tolist()
-    stress_principal_x = solution.princ_stress_df['opp'].tolist()
-    stress_principal_y = solution.princ_stress_df['adj'].tolist()
+    stress_principal = solution.stress_principal['s_max'].tolist()
+    stress_principal_x = solution.stress_principal['opp'].tolist()
+    stress_principal_y = solution.stress_principal['adj'].tolist()
     stress_principal_x_opp = [x * -1 for x in stress_principal_x]
     stress_principal_y_opp = [y * -1 for y in stress_principal_y]
     

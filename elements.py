@@ -62,15 +62,15 @@ class cst_element:
 
     def stiffness_matrix(self):                                                                                                        
         Bt = self.B.transpose()
-        eK = np.matmul(Bt, np.matmul(self.D, self.B)) * self.area * self.t 
+        element_stiffness = np.matmul(Bt, np.matmul(self.D, self.B)) * self.area * self.t 
 
         node_headings = []
         for n in self.node_list:
             for displacement in ['u', 'v']:
                 node_headings.append(str(n) + displacement)
 
-        self.eK_df = pd.DataFrame(
-            eK,
+        self.element_stiffness_matrix = pd.DataFrame(
+            element_stiffness,
             columns=node_headings,
             index=node_headings
         )
