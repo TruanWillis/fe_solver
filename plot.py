@@ -4,80 +4,126 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
 
-def plot_results(model, s, scale, window_name):
+def plot_results(model, solution, deformation_scale, window_name):
     print("Plotting results......")
 
-    mises = s.mises_stress_df['s_mises'].tolist()
-    u = s.u_ds.tolist()
+    stress_mises = solution.mises_stress_df['s_mises'].tolist()
+    displacements = solution.u_ds.tolist()
 
-    nodes = []
+    displacement_mag = []
+    for i in range(0, len(displacements), 2):
+        value = m.sqrt(displacements[i]**2 + displacements[i+1]**2)
+        displacement_mag.append(value)
+
+    node_list = []
     for node in model["nodes"]:
-        nodes.append(model["nodes"][node])
+        node_list.append(model["nodes"][node])
 
-    nodes_d = []
-    for i in range(0, len(nodes)):
-        index_1 = ((i+1)*2)-2
-        index_2 = ((i+1)*2)-1
-        x = nodes[i][0] + (u[index_1]*scale)
-        y = nodes[i][1] + (u[index_2]*scale)
-        nodes_d.append([x, y])
+    node_coordinates = []
+    for i in range(0, len(node_list)):
+        x_index = ((i+1)*2)-2
+        y_index = ((i+1)*2)-1
+        x = node_list[i][0] + (displacements[x_index] * deformation_scale)
+        y = node_list[i][1] + (displacements[y_index] * deformation_scale)
+        node_coordinates.append([x, y])
 
-    elements = []
+    element_list = []
     for element in model["elements"]:
-        node_list = model["elements"][element]["nodes"]
-        for i in range(len(node_list)):
-            node_list[i] = node_list[i]-1
-        elements.append(node_list)
+        element_nodes = model["elements"][element]["nodes"]
+        for i in range(len(element_nodes)):
+            element_nodes[i] = element_nodes[i]-1
+        element_list.append(element_nodes)
 
-    values_s = mises
-    values_u = []
-    for i in range(0, len(u), 2):
-        value = m.sqrt(u[i]**2 + u[i+1]**2)
-        values_u.append(value)
+    #values_s = mises
+    '''
+    displacement_mag = []
+    for i in range(0, len(displacements), 2):
+        value = m.sqrt(displacements[i]**2 + displacements[i+1]**2)
+        displacement_mag.append(value)
+    '''
     
-    v_x = []
-    v_y = []
+    element_coordinates_x = []
+    element_coordinates_y = []
 
-    for element in elements:
-        x = []
-        y = []
+    for element in element_list:
+        node_positions_x = []
+        node_positions_y = []
         
         for node in element:
-            x.append(nodes_d[node][0])
-            y.append(nodes_d[node][1])
-        x_ = sum(x)/3
-        y_ = sum(y)/3
-        v_x.append([x_])
-        v_y.append([y_])
+            node_positions_x.append(node_coordinates[node][0])
+            node_positions_y.append(node_coordinates[node][1])
+        element_centre_x = sum(node_positions_x)/3
+        element_centre_y = sum(node_positions_y)/3
+        element_coordinates_x.append([element_centre_x])
+        element_coordinates_y.append([element_centre_y])
 
-    v_s = s.princ_stress_df['s_max'].tolist()
-    v_u = s.princ_stress_df['opp'].tolist()
-    v_v = s.princ_stress_df['adj'].tolist()
+    stress_principal = solution.princ_stress_df['s_max'].tolist()
+    stress_principal_x = solution.princ_stress_df['opp'].tolist()
+    stress_principal_y = solution.princ_stress_df['adj'].tolist()
+    stress_principal_x_opp = [x * -1 for x in stress_principal_x]
+    stress_principal_y_opp = [y * -1 for y in stress_principal_y]
     
-    nodes = np.array(nodes)
-    nodes_d = np.array(nodes_d)
-    elements = np.array(elements)
-    
-    x, y = nodes.T
-    x_d, y_d = nodes_d.T
+    node_array = np.array(node_coordinates)
+    element_array = np.array(element_list)
+    node_coordinates_x, node_coordinates_y = node_array.T
     
     fig, axs = plt.subplots(1, 3, num=window_name)
-    u_plot = axs[0].tripcolor(x_d, y_d, elements, values_u, edgecolors='k', cmap="rainbow")
-    s_plot = axs[1].tripcolor(x_d, y_d, elements, values_s, edgecolors='k', cmap="rainbow")
-    v_plot = axs[2].quiver(v_x, v_y, v_u, v_v, v_s, cmap="rainbow")
-    v_u_opp = [u*-1 for u in v_u]
-    v_v_opp = [v*-1 for v in v_v]
-    axs[2].quiver(v_x, v_y, v_u_opp, v_v_opp, v_s, cmap="rainbow")
-    axs[2].triplot(x_d, y_d, elements, linewidth=0.4, color='black')
+
+    displacement_plot = axs[0].tripcolor(
+        node_coordinates_x, 
+        node_coordinates_y, 
+        element_array,  
+        displacement_mag, 
+        edgecolors='k', 
+        cmap="rainbow"
+    )
+    
     axs[0].axis('off')
-    axs[1].axis('off')
-    axs[2].axis('off')
     axs[0].set_title("U [Magnitude]", y = -0.07)
+    fig.colorbar(displacement_plot, ax=axs[0], format='%.0e')
+
+    stress_mises_plot = axs[1].tripcolor(
+        node_coordinates_x, 
+        node_coordinates_y, 
+        element_array, 
+        stress_mises,
+        edgecolors='k', 
+        cmap="rainbow"
+    )
+    
+    axs[1].axis('off')
     axs[1].set_title("S [von Mises]", y = -0.07)
+    fig.colorbar(stress_mises_plot, ax=axs[1], format='%.0e')
+        
+    stress_vector_plot = axs[2].quiver(
+        element_coordinates_x, 
+        element_coordinates_y, 
+        stress_principal_x, 
+        stress_principal_y, 
+        stress_principal, 
+        cmap="rainbow"
+    )
+    
+    axs[2].quiver(
+        element_coordinates_x, 
+        element_coordinates_y, 
+        stress_principal_x_opp, 
+        stress_principal_y_opp, 
+        stress_principal, 
+        cmap="rainbow"
+    )
+    
+    axs[2].triplot(
+        node_coordinates_x, 
+        node_coordinates_y, 
+        element_array, 
+        linewidth=0.2, 
+        color='black'
+    )
+    
+    axs[2].axis('off')
     axs[2].set_title("S [Max Principal]", y = -0.07)
-    fig.colorbar(u_plot, ax=axs[0], format='%.0e')
-    fig.colorbar(s_plot, ax=axs[1], format='%.0e')
-    fig.colorbar(v_plot, ax=axs[2], format='%.0e')
+    fig.colorbar(stress_vector_plot, ax=axs[2], format='%.0e')
+    
     plt.tight_layout()
-    #plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
     plt.show()
