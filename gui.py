@@ -134,7 +134,7 @@ class gui():
     def plot_results(self):    
         self.writeToLog("Ploting results "  + self.inp_name + ", close to continue...")
         try:
-            plot.plot_results(self.model, self.s, self.scale, self.window_name)
+            plot.plot_results(self.model, self.s, self.scale, self.window_name, self.save_matrix)
             self.writeToLog("...closed")
         except Exception as e:
             self.writeToLog(str(e))

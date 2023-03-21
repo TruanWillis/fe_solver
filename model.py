@@ -158,8 +158,7 @@ class generateModel:
 
 def call_gen_function(inp_file):
     model = generateModel()
-    line_count = 0
-    for line in inp_file:
+    for line_count, line in enumerate(inp_file):
         if line[0] == '*' and line[1] != '*':
             keyword = line.split("*")[1].split(",")[0].strip("\n").lower()
             if keyword in keywords.keys():
@@ -170,7 +169,6 @@ def call_gen_function(inp_file):
                     line_count_temp += 1
                 function = getattr(model, keywords[keyword])
                 function(keyword_inputs)
-        line_count += 1
     return model.__dict__["model"]
 
 

@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
 
-def plot_results(model, solution, deformation_scale, window_name):
-    print("Plotting results......")
+def plot_results(model, solution, deformation_scale, window_name, plot_matrix):
+    print("\nPlotting results...")
 
     stress_mises = solution.stress_mises['s_mises'].tolist()
     displacements = solution.displacements.tolist()
@@ -34,14 +34,6 @@ def plot_results(model, solution, deformation_scale, window_name):
             element_nodes[i] = element_nodes[i]-1
         element_list.append(element_nodes)
 
-    #values_s = mises
-    '''
-    displacement_mag = []
-    for i in range(0, len(displacements), 2):
-        value = m.sqrt(displacements[i]**2 + displacements[i+1]**2)
-        displacement_mag.append(value)
-    '''
-    
     element_coordinates_x = []
     element_coordinates_y = []
 
@@ -66,7 +58,7 @@ def plot_results(model, solution, deformation_scale, window_name):
     node_array = np.array(node_coordinates)
     node_coordinates_x, node_coordinates_y = node_array.T
     
-    fig, axs = plt.subplots(1, 3, num=window_name)
+    fig, axs = plt.subplots(1, 3, num=window_name + ": Results")
 
     displacement_plot = axs[0].tripcolor(
         node_coordinates_x, 
@@ -124,5 +116,46 @@ def plot_results(model, solution, deformation_scale, window_name):
     axs[2].set_title("S [Max Principal]", y = -0.07)
     fig.colorbar(stress_vector_plot, ax=axs[2], format='%.0e')
     
+
+    if plot_matrix: 
+        dof = solution.dof
+
+        x = np.repeat(np.arange(0.5, dof + 0.5, 1), dof) 
+        y = np.arange(0.5, dof + 0.5, 1)
+        y = np.tile(y, dof)
+
+        v = []
+        max_value = solution.global_stiffness_matrix.max()
+        max_value = max_value.max()
+        for index, row in solution.global_stiffness_matrix.iterrows():
+            v_row = [abs(i)/max_value for i in list(row)]
+            v.extend(v_row)
+        
+        marker_size = 3600 / dof 
+        
+        fig2, ax2 = plt.subplots(num=window_name + ": Stiffness Matrix")
+        ax2.scatter(x, y, marker='s', alpha=v, s=marker_size)
+        
+        if dof < 300:
+            plt.grid(True, linewidth=0.5) 
+
+    
+        ticks = np.arange(0, dof + 2, 2)         
+        ax2.set_xticks(ticks)
+        ax2.set_yticks(ticks)
+
+        ax2.xaxis.tick_top()
+        #plt.xlim(0, dof)
+        #plt.ylim(0, dof)
+        ax2.set_xlim(0, dof)
+        ax2.set_ylim(0, dof)
+        ax2.set_aspect('equal', adjustable='box')
+        ax2.invert_yaxis()
+        ax2.tick_params(left=False, right=False, labelleft=False, labeltop=False, top=False)
+
     plt.tight_layout()
     plt.show()
+
+
+
+

@@ -8,6 +8,8 @@ import pprint
 import os
 from tabulate import tabulate
 
+import matplotlib.pyplot as plt
+#from sklearn.preprocessing import normalize
 
 wk_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -180,11 +182,9 @@ class solver:
         for element in elements:
             node_list = self.model["elements"][element]["nodes"]
             u = np.zeros(len(node_list)*2)
-            count = 0
-            for node in node_list:
+            for count, node in enumerate(node_list):
                 for disp in ["u", "v"]:
                     u[count] = self.displacements[str(node)+disp]
-                    count += 1
 
             D = self.model["elements"][element]["K"].__dict__["D"]
             B = self.model["elements"][element]["K"].__dict__["B"]
@@ -242,19 +242,63 @@ class solver:
 
 
     def print_results(self):
-        print("\n" + "In-plane stress...")
+        print("\nIn-plane stress...")
         print(tabulate(self.stress_normal.head(), tablefmt="grid", numalign="right", headers=self.stress_normal.columns))
-        print("\n" + "Principal stress...")
+        print("\nPrincipal stress...")
         print(tabulate(self.stress_principal.head(), tablefmt="grid", numalign="right", headers=self.stress_principal.columns))       
-        print("\n" + "Mises stress...")
+        print("\nMises stress...")
         print(tabulate(self.stress_mises.head(), tablefmt="grid", numalign="right", headers=self.stress_mises.columns))
         
 
 if __name__ == "__main__":
     pp = pprint.PrettyPrinter(indent=4)
-    input = model.load_input(wk_dir + "/inp/Job-7.inp")
+    input = model.load_input(wk_dir + "/inp/Job-1.inp")
     model = model.call_gen_function(input)
     s = solver(model, True, True, wk_dir + "/")
 
     #pp.pprint(s.__dict__.keys())
     #pp.pprint(s.__dict__['displacements'])
+
+    sm = s.__dict__['global_stiffness_matrix']
+    print(sm.head())
+
+    print(s.__dict__['dof'])
+
+    x = np.repeat(np.arange(0.5, s.__dict__['dof'] + 0.5, 1), s.__dict__['dof']) 
+    y = np.arange(0.5, s.__dict__['dof'] + 0.5, 1)
+    y = np.tile(y, s.__dict__['dof'])
+
+    v = []
+    max_value = sm.max()
+    max_value = max_value.max()
+    for index, row in sm.iterrows():
+        v_row = [abs(i)/max_value for i in list(row)]
+        v.extend(v_row)
+    
+    marker_size = 3600 / s.__dict__['dof'] 
+    
+    fig, ax = plt.subplots()
+    print(fig, ax)
+    ax.scatter(x, y, marker='s', alpha=v, s=marker_size)
+    
+    if s.__dict__['dof'] < 300:
+        ax.grid(True, linewidth=0.5)
+
+    ticks = np.arange(0, s.__dict__['dof'] + 2, 2)         
+    ax.set_xticks(ticks)
+    ax.set_yticks(ticks)
+
+    ax.xaxis.tick_top()
+    ax.set_xlim(0, s.__dict__['dof'])
+    ax.set_ylim(0, s.__dict__['dof'])
+    ax.set_aspect('equal', adjustable='box')
+    ax.invert_yaxis()
+    ax.tick_params(left=False, right=False, labelleft=False, labeltop=False, top=False)
+
+    plt.tight_layout()
+    plt.show()
+    
+    
+    
+
+    
