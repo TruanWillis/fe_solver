@@ -181,7 +181,7 @@ def load_input(file):
 
 if __name__ == "__main__":
     wk_dir = os.path.dirname(os.path.realpath(__file__))
-    input_file = load_input(wk_dir + "/test_data/test_input_1.inp")
+    input_file = load_input(wk_dir + "/test_data/test_input_3.inp")
     model = call_gen_function(input_file)
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(model)
@@ -189,5 +189,5 @@ if __name__ == "__main__":
     #with open(wk_dir + "/test_data/test_model_1.json", "w") as outfile:
     #    json.dump(model, outfile, separators=(',', ':'))
 
-    with open(wk_dir + "/test_data/test_model_1.pickle", "wb") as outfile:
+    with open(wk_dir + "/test_data/test_model_3.pickle", "wb") as outfile:
         pickle.dump(model, outfile)

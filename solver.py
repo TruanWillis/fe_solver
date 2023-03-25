@@ -165,8 +165,13 @@ class solver:
         displacement_solution = np.linalg.solve(global_stiffness_matrix, forces)
         displacements = pd.Series(displacement_solution, index=self.forces.index)
         
+        if self.homogeneous_model:
+            homogeneous_correction = 1
+        else:
+            homogeneous_correction = -1
+
         for index, displacement in displacements.items():
-            self.displacements._set_value(index, displacement*-1)
+            self.displacements._set_value(index, displacement*homogeneous_correction)
         
         
     def compute_normal_stress(self):
@@ -180,9 +185,11 @@ class solver:
         for element in elements:
             node_list = self.model["elements"][element]["nodes"]
             u = np.zeros(len(node_list)*2)
-            for count, node in enumerate(node_list):
+            count = 0
+            for node in node_list:
                 for disp in ["u", "v"]:
                     u[count] = self.displacements[str(node)+disp]
+                    count += 1
 
             D = self.model["elements"][element]["K"].__dict__["D"]
             B = self.model["elements"][element]["K"].__dict__["B"]
@@ -257,13 +264,16 @@ if __name__ == "__main__":
 
     #pp.pprint(s.__dict__.keys())
     pp.pprint(s.__dict__['displacements'])
+    pp.pprint(s.__dict__['forces'])
+    pp.pprint(s.__dict__['stress_normal']['s1']['e8'])
 
+    '''
     sm = s.__dict__['global_stiffness_matrix']
     print(sm.head())
 
     print(s.__dict__['dof'])
 
-    '''
+
     x = np.repeat(np.arange(0.5, s.__dict__['dof'] + 0.5, 1), s.__dict__['dof']) 
     y = np.arange(0.5, s.__dict__['dof'] + 0.5, 1)
     y = np.tile(y, s.__dict__['dof'])
