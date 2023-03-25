@@ -251,18 +251,19 @@ class solver:
 if __name__ == "__main__":
     wk_dir = os.path.dirname(os.path.realpath(__file__))
     pp = pprint.PrettyPrinter(indent=4)
-    input = model.load_input(wk_dir + "/inp/Job-1.inp")
+    input = model.load_input(wk_dir + "/test_data/test_input_1.inp")
     model = model.call_gen_function(input)
     s = solver(model, True, True, wk_dir + "/")
 
     #pp.pprint(s.__dict__.keys())
-    #pp.pprint(s.__dict__['displacements'])
+    pp.pprint(s.__dict__['displacements'])
 
     sm = s.__dict__['global_stiffness_matrix']
     print(sm.head())
 
     print(s.__dict__['dof'])
 
+    '''
     x = np.repeat(np.arange(0.5, s.__dict__['dof'] + 0.5, 1), s.__dict__['dof']) 
     y = np.arange(0.5, s.__dict__['dof'] + 0.5, 1)
     y = np.tile(y, s.__dict__['dof'])
@@ -296,6 +297,7 @@ if __name__ == "__main__":
 
     plt.tight_layout()
     plt.show()
+    '''
     
     
     

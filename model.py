@@ -1,5 +1,7 @@
+import json
 import os
 import pprint
+import pickle
 
 
 keywords = {
@@ -65,19 +67,19 @@ class generateModel:
         self.model["nodesets"][set_name] = []
         for line in input[1:]:
             nodes = line.split(",")
-            if len(split_first_line) == 2:
+            if "generate" in input[0]:
+                start = int(nodes[0].strip()) 
+                end = int(nodes[1].strip())
+                inc = int(nodes[2].strip())
+                for node in range(start, end+inc, inc):
+                    self.model["nodesets"][set_name].append(node)
+            else:
                 for node in nodes:
                     try:
                         node = int(node.strip())
                         self.model["nodesets"][set_name].append(node)
                     except:
                         pass
-            elif len(split_first_line) == 3:
-                start = int(nodes[0].strip()) 
-                end = int(nodes[1].strip())
-                inc = int(nodes[2].strip())
-                for node in range(start, end+inc, inc):
-                    self.model["nodesets"][set_name].append(node)
 
 
     def gen_element_set(self, input):
@@ -86,19 +88,19 @@ class generateModel:
         self.model["elementsets"][set_name] = []
         for line in input[1:]:
             elements = line.split(",")
-            if len(split_first_line) == 2:
+            if "generate" in input[0]:
+                start = int(elements[0].strip()) 
+                end = int(elements[1].strip())
+                inc = int(elements[2].strip())
+                for element in range(start, end+inc, inc):
+                    self.model["elementsets"][set_name].append(element)                   
+            else:
                 for element in elements:
                     try:
                         element = int(element.strip())
                         self.model["elementsets"][set_name].append(element)
                     except:
                         pass
-            elif len(split_first_line) == 3:
-                start = int(elements[0].strip()) 
-                end = int(elements[1].strip())
-                inc = int(elements[2].strip())
-                for element in range(start, end+inc, inc):
-                    self.model["elementsets"][set_name].append(element)
                 
 
     def gen_shell_section(self, input):
@@ -179,7 +181,13 @@ def load_input(file):
 
 if __name__ == "__main__":
     wk_dir = os.path.dirname(os.path.realpath(__file__))
-    input_file = load_input(wk_dir + "/inp/Job-3.inp")
+    input_file = load_input(wk_dir + "/test_data/test_input_1.inp")
     model = call_gen_function(input_file)
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(model)
+
+    #with open(wk_dir + "/test_data/test_model_1.json", "w") as outfile:
+    #    json.dump(model, outfile, separators=(',', ':'))
+
+    with open(wk_dir + "/test_data/test_model_1.pickle", "wb") as outfile:
+        pickle.dump(model, outfile)
