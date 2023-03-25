@@ -4,9 +4,6 @@ import pandas as pd
 import os
 
 
-wk_dir = os.path.dirname(os.path.realpath(__file__))
-
-
 class cst_element:
     def __init__(self, x_cord, y_cord, node_list, E, v, t):
         self.x_cord = [float(x) for x in x_cord]                                                
@@ -77,6 +74,7 @@ class cst_element:
 
 
 if __name__ == "__main__":
+    wk_dir = os.path.dirname(os.path.realpath(__file__))
     input = model.load_input(wk_dir + "/inp/Job-7.inp")
     test_model = model.call_gen_function(input)
     node_list = test_model["elements"][1]["nodes"]

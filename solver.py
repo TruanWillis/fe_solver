@@ -11,8 +11,6 @@ from tabulate import tabulate
 import matplotlib.pyplot as plt
 #from sklearn.preprocessing import normalize
 
-wk_dir = os.path.dirname(os.path.realpath(__file__))
-
 
 class solver:
     def __init__(self, model, print_head, save_matrix, out_dir):
@@ -242,15 +240,16 @@ class solver:
 
 
     def print_results(self):
-        print("\nIn-plane stress...")
+        print("\n" + "In-plane stress...")
         print(tabulate(self.stress_normal.head(), tablefmt="grid", numalign="right", headers=self.stress_normal.columns))
-        print("\nPrincipal stress...")
+        print("\n" + "Principal stress...")
         print(tabulate(self.stress_principal.head(), tablefmt="grid", numalign="right", headers=self.stress_principal.columns))       
-        print("\nMises stress...")
+        print("\n" + "Mises stress...")
         print(tabulate(self.stress_mises.head(), tablefmt="grid", numalign="right", headers=self.stress_mises.columns))
         
 
 if __name__ == "__main__":
+    wk_dir = os.path.dirname(os.path.realpath(__file__))
     pp = pprint.PrettyPrinter(indent=4)
     input = model.load_input(wk_dir + "/inp/Job-1.inp")
     model = model.call_gen_function(input)

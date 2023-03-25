@@ -5,7 +5,7 @@ import matplotlib.cm as cm
 
 
 def plot_results(model, solution, deformation_scale, window_name, plot_matrix):
-    print("\nPlotting results...")
+    print("\n" + "Plotting results...")
 
     stress_mises = solution.stress_mises['s_mises'].tolist()
     displacements = solution.displacements.tolist()

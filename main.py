@@ -1,24 +1,34 @@
 import gui
+import os, json
+
+config = {
+    "name":"FEsolver",
+    "version":"0.0.1",
+    "disclaimer":(
+    "FEsolver is a non-commercial 2D plane-stress finite element solver. "
+    "The program is distributed with no warranty."
+    ),
+}
+
+config_user = {
+    "print_head":True,
+    "save_matrix":True,
+    "scale":2
+}
+
+config_user_filepath = os.path.dirname(os.path.realpath(__file__)) + "/config_user.json" 
 
 if __name__ == '__main__':
-    config = {
-        "name":"FEsolver",
-        "version":"0.0.1",
-        "disclaimer":(
-        "FEsolver is a non-commercial finite element solver. "
-        "The program is distributed with no warranty."
-        ),
-        "print_head":True,
-        "save_matrix":True,
-        "scale":2
-    }
+    if os.path.exists(config_user_filepath):
+        with open(config_user_filepath, "r") as config_user_file:
+            #config_user = config_user_file.read()
+            config_user = json.load(config_user_file)
 
-    #version = "0.0.1"
-    #disclaimer = (
-    #    "FEsolver is a non-commercial finite element solver. "
-    #    "The program is distributed with no warranty."
-    #)
-    #solver_print_head = True
-    
+    else:  
+        with open(config_user_filepath, "w") as config_user_file:
+            print(config_user)
+            json.dump(config_user, config_user_file, indent=4)
+
+    config.update(config_user)
     gui.run(config)
   

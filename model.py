@@ -1,7 +1,6 @@
 import os
 import pprint
 
-wk_dir = os.path.dirname(os.path.realpath(__file__))
 
 keywords = {
     "node":"gen_node", 
@@ -179,6 +178,7 @@ def load_input(file):
 
 
 if __name__ == "__main__":
+    wk_dir = os.path.dirname(os.path.realpath(__file__))
     input_file = load_input(wk_dir + "/inp/Job-3.inp")
     model = call_gen_function(input_file)
     pp = pprint.PrettyPrinter(indent=4)

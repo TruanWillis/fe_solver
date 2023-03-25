@@ -8,6 +8,7 @@ import model
 import solver
 import plot
 
+
 class gui():
     def __init__(self, root, config):
         self.window_name = config["name"] + " " + config["version"]
