@@ -112,7 +112,7 @@ class solver:
             self.global_stiffness_matrix_save = self.global_stiffness_matrix.copy()
 
         for e in self.model["elements"]:
-            element_stiffness_matrix = self.model["elements"][e]['K'].__dict__["element_stiffness_matrix"]
+            element_stiffness_matrix = self.model["elements"][e]['K'].element_stiffness_matrix
 
             for column in element_stiffness_matrix:
                 for index, row in element_stiffness_matrix.iterrows():
@@ -191,8 +191,8 @@ class solver:
                     u[count] = self.displacements[str(node)+disp]
                     count += 1
 
-            D = self.model["elements"][element]["K"].__dict__["D"]
-            B = self.model["elements"][element]["K"].__dict__["B"]
+            D = self.model["elements"][element]["K"].D
+            B = self.model["elements"][element]["K"].B
             
             normal_stress = np.matmul(np.matmul(D, B), u)
             self.stress_normal.loc["e" + str(element)] = [
@@ -263,20 +263,18 @@ if __name__ == "__main__":
     s = solver(model, True, True, wk_dir + "/")
 
     #pp.pprint(s.__dict__.keys())
-    pp.pprint(s.__dict__['displacements'])
-    pp.pprint(s.__dict__['forces'])
-    pp.pprint(s.__dict__['stress_normal']['s1']['e8'])
+    pp.pprint(s.displacements)
+    pp.pprint(s.forces)
+    pp.pprint(s.stress_normal['s1']['e8'])
+
 
     '''
-    sm = s.__dict__['global_stiffness_matrix']
+    sm = s.global_stiffness_matrix
     print(sm.head())
 
-    print(s.__dict__['dof'])
-
-
-    x = np.repeat(np.arange(0.5, s.__dict__['dof'] + 0.5, 1), s.__dict__['dof']) 
-    y = np.arange(0.5, s.__dict__['dof'] + 0.5, 1)
-    y = np.tile(y, s.__dict__['dof'])
+    x = np.repeat(np.arange(0.5, s.dof + 0.5, 1), s.dof) 
+    y = np.arange(0.5, s.dof + 0.5, 1)
+    y = np.tile(y, s.dof)
 
     v = []
     max_value = sm.max()
@@ -285,22 +283,22 @@ if __name__ == "__main__":
         v_row = [abs(i)/max_value for i in list(row)]
         v.extend(v_row)
     
-    marker_size = 3600 / s.__dict__['dof'] 
+    marker_size = 3600 / s.dof 
     
     fig, ax = plt.subplots()
     print(fig, ax)
     ax.scatter(x, y, marker='s', alpha=v, s=marker_size)
     
-    if s.__dict__['dof'] < 300:
+    if s.dof < 300:
         ax.grid(True, linewidth=0.5)
 
-    ticks = np.arange(0, s.__dict__['dof'] + 2, 2)         
+    ticks = np.arange(0, s.dof + 2, 2)         
     ax.set_xticks(ticks)
     ax.set_yticks(ticks)
 
     ax.xaxis.tick_top()
-    ax.set_xlim(0, s.__dict__['dof'])
-    ax.set_ylim(0, s.__dict__['dof'])
+    ax.set_xlim(0, s.dof)
+    ax.set_ylim(0, s.dof)
     ax.set_aspect('equal', adjustable='box')
     ax.invert_yaxis()
     ax.tick_params(left=False, right=False, labelleft=False, labeltop=False, top=False)
@@ -308,7 +306,6 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
     '''
-    
     
     
 
