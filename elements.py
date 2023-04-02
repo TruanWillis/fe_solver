@@ -6,6 +6,18 @@ import os
 
 class cst_element:
     def __init__(self, x_cord, y_cord, node_list, E, v, t):
+        """
+            Initiates element class object.
+
+            Args:
+                x_cord (list): Element node x axis coordinates.
+                y_cord (list): Element node y axis coordinates.
+                node_list (list): Element node numbers.
+                E (int): Young's Modulus .
+                v (int): Poisson's ratio.
+                t (int): Shell thickness.
+        """
+
         self.x_cord = [float(x) for x in x_cord]                                                
         self.y_cord = [float(y) for y in y_cord]
         self.node_list = node_list
@@ -16,11 +28,15 @@ class cst_element:
         
         self.calculate_area()
         self.strain_displacement_matrix()
-        self.stress_strain_matirx()
+        self.stress_strain_matrix()
         self.stiffness_matrix() 
 
 
     def calculate_area(self):
+        """
+            Calculates element area.
+        """
+
         area = np.array([
             [1, self.x_cord[0], self.y_cord[0]],
             [1, self.x_cord[1], self.y_cord[1]],
@@ -31,6 +47,9 @@ class cst_element:
 
 
     def strain_displacement_matrix(self):
+        """
+            Defines the strain-displacement matrix [B] as a numpy array.
+        """
         b1 = self.y_cord[1] - self.y_cord[2]                                                
         b2 = self.y_cord[2] - self.y_cord[0]
         b3 = self.y_cord[0] - self.y_cord[1]
@@ -47,7 +66,11 @@ class cst_element:
         self.B = B * (1/(2*self.area))
 
 
-    def stress_strain_matirx(self):
+    def stress_strain_matrix(self):
+        """
+            Defines stress-stain matrix [D] as numpy array.
+        """
+
         D = np.array([
             [1, self.v, 0],
             [self.v, 1, 0],
@@ -57,7 +80,11 @@ class cst_element:
         self.D = D * (self.E/(1-self.v**2))
 
 
-    def stiffness_matrix(self):                                                                                                        
+    def stiffness_matrix(self):
+        """
+            Defines element stiffness matrix [K] as a pandas dataFrame
+        """
+
         Bt = self.B.transpose()
         element_stiffness = np.matmul(Bt, np.matmul(self.D, self.B)) * self.area * self.t 
 
@@ -74,6 +101,10 @@ class cst_element:
 
 
 if __name__ == "__main__":
+    """
+        __main__ used for development purposes.
+    """
+
     wk_dir = os.path.dirname(os.path.realpath(__file__))
     input = model.load_input(wk_dir + "/inp/Job-7.inp")
     test_model = model.call_gen_function(input)

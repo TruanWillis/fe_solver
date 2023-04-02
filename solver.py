@@ -14,6 +14,16 @@ import matplotlib.pyplot as plt
 
 class solver:
     def __init__(self, model, print_head, save_matrix, out_dir):
+        """
+            Initiates solver class object.
+
+            Args:
+                model (dict): Model defined using keywords.
+                print_head (boolean): Prints stress dataFrame head to terminal.
+                save_matrix (boolean): Saves global stiffness matrix as csv.
+                out_dir (string): Directory for global stiffness matrix csv.
+        """
+
         self.model = model
         self.dof = len(self.model["nodes"].keys()) * 2
                 
@@ -41,7 +51,7 @@ class solver:
         self.define_boundary()
         self.define_load()
         self.reduce_matrix()
-        self.compute_dispalcements()
+        self.compute_displacements()
         self.compute_normal_stress()
         self.compute_principal_stress()
         self.compute_mises_stress()
@@ -51,6 +61,10 @@ class solver:
 
 
     def define_boundary(self):
+        """
+            Updates displacements dataSeries with known nodal displacements.
+        """
+
         for boundary in self.model["boundary"]:
             if isinstance(boundary, str):
                 node_list = self.model["nodesets"][boundary]
@@ -64,6 +78,10 @@ class solver:
         
 
     def define_load(self):
+        """
+            Updates forces dataSeries with known applied forces.
+        """
+
         if bool(self.model['load']) is False:
             self.homogeneous_model = False
         else:
@@ -80,6 +98,10 @@ class solver:
 
 
     def define_element_stiffness(self):
+        """
+            Defines element stiffness matrix for all model elements.
+        """
+
         for element in self.model["elements"]:
             node_list = self.model["elements"][element]["nodes"]
             x_cord = []
@@ -102,6 +124,10 @@ class solver:
 
         
     def define_global_stiffness(self):
+        """
+            Defines global stiffness matrix based on element stiffness matrices.
+        """
+
         self.global_stiffness_matrix = pd.DataFrame(
             np.zeros((self.dof, self.dof)),
             columns=self.node_headings,
@@ -132,6 +158,10 @@ class solver:
 
 
     def reduce_matrix(self):
+        """
+            Reduces global stiffness matrix by removing nodal DOF where a constrained boundary condition is defined.
+        """
+
         self.global_stiffness_matrix_reduced = self.global_stiffness_matrix.copy()
         displacements_temp = self.displacements.copy()
 
@@ -155,7 +185,11 @@ class solver:
                     self.forces.drop(labels=index, inplace=True)   
              
 
-    def compute_dispalcements(self):
+    def compute_displacements(self):
+        """
+            Calculates nodal displacements as a function of global stiffness matrix and applied forces.
+        """
+
         global_stiffness_matrix = self.global_stiffness_matrix_reduced.to_numpy()
         forces = self.forces.to_numpy()
 
@@ -175,6 +209,10 @@ class solver:
         
         
     def compute_normal_stress(self):
+        """
+            Calculates element in-plane stresses.
+        """
+
         elements = self.model["elements"].keys()
         index = ["e" + str(element) for element in elements]
         self.stress_normal = pd.DataFrame(
@@ -203,6 +241,10 @@ class solver:
 
 
     def compute_principal_stress(self): 
+        """
+            Calculates element principal stresses.
+        """
+
         index = ["e" + str(element) for element in self.model["elements"].keys()]
         self.stress_principal = pd.DataFrame(
            index=index,
@@ -231,6 +273,10 @@ class solver:
 
 
     def compute_mises_stress(self):
+        """
+            Calculates element von Mises stress
+        """
+
         index = ["e" + str(element) for element in self.model["elements"].keys()]
         self.stress_mises = pd.DataFrame(
            index=index,
@@ -247,6 +293,10 @@ class solver:
 
 
     def print_results(self):
+        """
+            Prints in-plane, principal and mises stress dataFrame heads to terminal.
+        """
+
         print("\n" + "In-plane stress...")
         print(tabulate(self.stress_normal.head(), tablefmt="grid", numalign="right", headers=self.stress_normal.columns))
         print("\n" + "Principal stress...")
@@ -256,6 +306,10 @@ class solver:
         
 
 if __name__ == "__main__":
+    """
+        __main__ for development purposes.
+    """
+
     wk_dir = os.path.dirname(os.path.realpath(__file__))
     pp = pprint.PrettyPrinter(indent=4)
     input = model.load_input(wk_dir + "/test_data/test_input_1.inp")

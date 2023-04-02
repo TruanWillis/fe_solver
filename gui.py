@@ -11,6 +11,14 @@ import plot
 
 class gui():
     def __init__(self, root, config):
+        """
+            Initiates gui class object.
+
+            Args:
+                root (object): TKinter tk class object.
+                config (dict): User configurable values.
+        """
+
         self.window_name = config["name"] + " " + config["version"]
         self.scale = config["scale"]
         self.print_head = config["print_head"]
@@ -49,6 +57,13 @@ class gui():
         self.writeToLog(config["disclaimer"])
 
     def writeToLog(self, msg):
+        """
+            Writes text to gui log.
+
+            Args:
+                msg (string): Text to display.
+        """
+
         numlines = int(self.log.index('end - 1 line').split('.')[0])
         self.log['state'] = 'normal'
         if numlines==24:
@@ -60,6 +75,10 @@ class gui():
         
 
     def select_dir(self):
+        """
+            Button function to select working directory.
+        """
+
         self.dir_name = filedialog.askdirectory(
             title="Select working directory"
         )
@@ -77,6 +96,10 @@ class gui():
 
 
     def select_inp(self):
+        """
+            Button function to select inp file.
+        """
+
         filetypes = (
             ("inp file", "*.inp"),
             ("text files", "*.txt"),
@@ -104,6 +127,10 @@ class gui():
 
 
     def model_generate(self):
+        """
+            Button function to generate model from selected inp file.
+        """
+
         self.writeToLog("Generating model " + self.inp_name + "...")
         try:
             input = model.load_input(self.dir_name + "/" + self.inp_name)
@@ -116,13 +143,21 @@ class gui():
             self.writeToLog(str(e))
 
 
-    def model_solve(self):    
+    def model_solve(self):
+        """
+            Button function to solve model.
+        """
+
         self.solver_start = timeit.default_timer()
         self.writeToLog("Solving model "  + self.inp_name + "...")
         self.call_solver()
 
 
     def call_solver(self):
+        """
+            Calls solver function.
+        """
+
         try:
             self.s = solver.solver(self.model, self.print_head, self.save_matrix, self.dir_name)
             self.solver_end = timeit.default_timer()
@@ -133,7 +168,11 @@ class gui():
 
 
     def plot_results(self):    
-        self.writeToLog("Ploting results "  + self.inp_name + ", close to continue...")
+        """
+            Button function to plot solver results.
+        """
+
+        self.writeToLog("Plotting results "  + self.inp_name + ", close to continue...")
         try:
             plot.plot_results(self.model, self.s, self.scale, self.window_name, self.save_matrix)
             self.writeToLog("...closed")
@@ -142,13 +181,24 @@ class gui():
 
 
 def run(config):
+    """
+    Runs gui.
+
+    Args:
+        config (dict): User configurable values.
+    """
+
     root=tk.Tk()
     gui(root, config)
     root.mainloop()
 
 
 if __name__=="__main__":
-    root=tk.Tk()
+    """
+        __main__ used for development purposes.
+    """
+    
+    root = tk.Tk()
     gui(
         root,
         {"name":"Test",
