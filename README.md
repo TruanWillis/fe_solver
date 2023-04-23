@@ -66,9 +66,15 @@ To run use the following terminal command.
 python main.py
 ```
 
-
-
 Example `.inp` files are provided in `\inp`
+
+FEsolver GUI provides the following options:
+1. `Working directort` - sets working directory
+2. `Input file` - select model input file
+3. `Generate model` - converts input file keywords to model object
+4. `Solve model` - calculates model solution
+5. `Plot results` - plots displacement, von mises stress and principal stress on deformed mesh (plots stiffness matrix heat map is `save_matrix = True`)
+6. `Quite` - closes GUI
 
 
 ---
