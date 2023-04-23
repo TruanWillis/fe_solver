@@ -20,7 +20,7 @@ keywords = {
 class generateModel:
     def __init__(self):
         """
-            Intiates model dictionary.
+            Initiates model class object.
         """
 
         self.model={}
@@ -37,7 +37,7 @@ class generateModel:
 
     def strip_input(self, input):
         """
-            Strips white space from nest list of strings.
+            Strips white space from nested list of strings.
 
             Args:
                 input (list): Nested list of strings.

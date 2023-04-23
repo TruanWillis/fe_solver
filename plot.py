@@ -1,12 +1,11 @@
 import numpy as np
 import math as m
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 
 
 def plot_results(model, solution, deformation_scale, window_name, plot_matrix):
     """
-        Plots displacement, von Mises stress defomred contour plots, 
+        Plots displacement, von Mises stress deformed contour plots, 
         max principal stress vector plots and global stiffness matrix 
         heat map.
 

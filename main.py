@@ -21,12 +21,10 @@ config_user_filepath = os.path.dirname(os.path.realpath(__file__)) + "/config_us
 if __name__ == '__main__':
     if os.path.exists(config_user_filepath):
         with open(config_user_filepath, "r") as config_user_file:
-            #config_user = config_user_file.read()
             config_user = json.load(config_user_file)
 
     else:  
         with open(config_user_filepath, "w") as config_user_file:
-            print(config_user)
             json.dump(config_user, config_user_file, indent=4)
 
     config.update(config_user)

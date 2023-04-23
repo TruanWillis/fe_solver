@@ -3,10 +3,7 @@ from tkinter import filedialog
 from tkinter.messagebox import showinfo
 
 import os, timeit
-
-import model
-import solver
-import plot
+import model, solver, plot
 
 
 class gui():
