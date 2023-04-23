@@ -45,9 +45,8 @@
 
   
 ## How To Use
-
   
-#### Installation  
+### Installation  
 
 Clone repository using the following https://github.com/koodibaas/fe_solver.git
 
@@ -58,7 +57,7 @@ User configurable options are provided in _config_user.json_, the following conf
 2. `save_matrix` (boolean) - saves stiffness matrix to _stiffness_matrix,csv_
 3. `scale` (integer) - result plot deformation scale
 
-#### Running
+### Running
 
 To run use the following terminal command. 
 
