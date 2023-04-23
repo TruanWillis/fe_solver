@@ -45,6 +45,8 @@ class solver:
             index=self.node_headings
         )
 
+        self.element_index = ["e" + str(element) for element in self.model["elements"].keys()]
+
         self.define_element_stiffness()
         self.define_global_stiffness()
         self.define_boundary()
@@ -213,9 +215,8 @@ class solver:
         """
 
         elements = self.model["elements"].keys()
-        index = ["e" + str(element) for element in elements]
         self.stress_normal = pd.DataFrame(
-           index=index,
+           index=self.element_index,
            columns=["s1", "s2", "s12"]
            )
         
@@ -244,9 +245,8 @@ class solver:
             Calculates element principal stresses.
         """
 
-        index = ["e" + str(element) for element in self.model["elements"].keys()]
         self.stress_principal = pd.DataFrame(
-           index=index,
+           index=self.element_index,
            columns=["s_max", "s_min", "s_shear", "a", "opp", "adj"]
            )
         
@@ -276,9 +276,8 @@ class solver:
             Calculates element von Mises stress
         """
 
-        index = ["e" + str(element) for element in self.model["elements"].keys()]
         self.stress_mises = pd.DataFrame(
-           index=index,
+           index=self.element_index,
            columns=["s_mises"]
            )
         
