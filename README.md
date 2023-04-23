@@ -26,8 +26,8 @@
 #### Technologies
 
 - Python version 3.11.2  
-- Pandas - matrix and array storage.
-- Numpy - matrix manipulation and solution.
+- Pandas - matrix and array storage
+- Numpy - matrix manipulation and solution
 - Matplotlib - results plotting
 - Tabulate - terminal reporting
 
@@ -43,13 +43,15 @@
   
 #### Installation  
 
-Clone repository using the following link.
-<li>https://github.com/koodibaas/fe_solver.git</li>
+Clone repository using the following link https://github.com/koodibaas/fe_solver.git
 
 Python modules provided in _requirements.txt_
 
-User configurable options are provided in _config_user.json_
-
+User configurable options are provided in _config_user.json_, the following configurable options are available:
+	1. `print_head` (boolean) - prints the panda's head for normal, principal and von Mises stress results
+	2. `save_matrix` (boolean) - saves stiffness matrix to _stiffness_matrix,csv_
+	3. 'scale' (int) - result plot deformation scale
+	
 #### Running
 
 To run use the following terminal command. 
@@ -60,14 +62,7 @@ python main.py
 
 
 
-#### API Reference
-
-  
-```html
-
-    <p>dummy code</p>
-
-```
+Example _.inp_ files are provided in ```\inp```
 
 
 ---
