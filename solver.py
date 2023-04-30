@@ -104,6 +104,7 @@ class solver:
         """
 
         for element in self.model["elements"]:
+            element_type = self.model["elements"][element]["type"]
             node_list = self.model["elements"][element]["nodes"]
             x_cord = []
             y_cord = []
@@ -113,6 +114,7 @@ class solver:
             
             
             cst = elements.cst_element(
+                element_type,
                 x_cord,
                 y_cord,
                 node_list,
