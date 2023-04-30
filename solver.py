@@ -113,7 +113,7 @@ class solver:
                 y_cord.append(self.model["nodes"][node][1])
             
             
-            cst = elements.cst_element(
+            cst = elements.element(
                 element_type,
                 x_cord,
                 y_cord,

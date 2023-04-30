@@ -4,7 +4,7 @@ import pandas as pd
 import os
 
 
-class cst_element:
+class element:
     def __init__(self, element_type, x_cord, y_cord, node_list, E, v, t):
         """
             Initiates element class object.
@@ -130,7 +130,7 @@ if __name__ == "__main__":
         x_cord.append(test_model["nodes"][node][0])
         y_cord.append(test_model["nodes"][node][1])
             
-    cst = cst_element(
+    cst = element(
         "s3",
         x_cord,
         y_cord,
