@@ -21,8 +21,12 @@ class gui():
         self.print_head = config["print_head"]
         self.save_matrix = config["save_matrix"]
 
-        root.title(self.window_name)
-        root.geometry("450x600")
+        #root.title(self.window_name)
+        #root.geometry("450x600")
+
+        self.canvas = tk.Canvas(root, width=500, height=500, bg="white")
+        self.canvas.pack(side="right")
+
         icon = tk.PhotoImage(file=os.path.dirname(os.path.realpath(__file__)) + "/media/icon.png")
         root.iconphoto(True, icon)
 
@@ -43,15 +47,78 @@ class gui():
         self.log = tk.Text(frame, state='disabled', height="200", wrap='char')     
 
         frame.pack(fill="both", expand=True)
-        dir_button.pack(fill="both", expand=True)
-        inp_button.pack(fill="both", expand=True)
-        model_button.pack(fill="both", expand=True)
-        solve_button.pack(fill="both", expand=True)
-        plot_button.pack(fill="both", expand=True)
-        quit_button.pack(fill="both", expand=True)
-        self.log.pack(fill="both", expand=True)
+        #dir_button.pack(fill="both", expand=True)
+        #inp_button.pack(fill="both", expand=True)
+        #model_button.pack(fill="both", expand=True)
+        #solve_button.pack(fill="both", expand=True)
+        #plot_button.pack(fill="both", expand=True)
+        #quit_button.pack(fill="both", expand=True)
+        #self.log.pack(fill="both", expand=True)
 
-        self.writeToLog(config["disclaimer"])
+        #self.writeToLog(config["disclaimer"])
+
+        # Create shapes
+        line_button = tk.Button(frame, text="Line", command=self.create_line)
+        line_button.pack()
+        rectangle_button = tk.Button(frame, text="Rectangle", command=self.create_rectangle)
+        rectangle_button.pack()
+        circle_button = tk.Button(frame, text="Circle", command=self.create_circle)
+        circle_button.pack()
+
+        # Bind the mouse wheel event to the canvas
+        self.canvas.bind("<MouseWheel>", self.zoom)
+
+        self.scaling_factor = 1.0
+
+        # Example usage: Draw a rectangle on the canvas
+        rect = self.canvas.create_rectangle(50, 50, 200, 200, fill="blue")
+
+
+    def zoom(self, event):
+        #global self.scaling_factor
+
+        # Get the direction of the mouse wheel scroll
+        if event.delta > 0:
+            # Zoom in
+            self.scaling_factor *= 1.1  # Increase scale factor by 10%
+        else:
+            # Zoom out
+            self.scaling_factor *= 0.9  # Decrease scale factor by 10%
+
+        # Apply the new scale factor to the canvas
+        self.canvas.scale("all", event.x, event.y, self.scaling_factor, self.scaling_factor)
+
+
+    def create_line(self):
+        # Get start and end points from user input
+        start_x = input("Start X: ")
+        start_y = input("Start Y: ")
+        end_x = input("End X: ")
+        end_y = input("End Y: ")
+
+        # Draw line on canvas
+        self.canvas.create_line(start_x, start_y, end_x, end_y)
+
+    def create_rectangle(self):
+        # Get top-left and bottom-right points from user input
+        top_left_x = input("Top-left X: ")
+        top_left_y = input("Top-left Y: ")
+        bottom_right_x = input("Bottom-right X: ")
+        bottom_right_y = input("Bottom-right Y: ")
+
+        # Draw rectangle on canvas
+        self.canvas.create_rectangle(top_left_x, top_left_y, bottom_right_x, bottom_right_y)
+
+    def create_circle(self):
+        # Get center point and radius from user input
+        center_x = input("Center X: ")
+        center_y = input("Center Y: ")
+        radius = input("Radius: ")
+
+        # Draw circle on canvas
+        self.canvas.create_oval(center_x - radius, center_y - radius, center_x + radius, center_y + radius)
+
+
 
     def writeToLog(self, msg):
         """
@@ -198,8 +265,71 @@ if __name__=="__main__":
     root = tk.Tk()
     gui(
         root,
-        {"name":"Test",
+        {"name":"FEsolver",
         "version":"0.0.0",
-        "disclaimer":""}
-        )
+        "disclaimer":("Testing."),
+        "print_head":True,
+        "save_matrix":True,
+        "scale":2
+        }
+    )
+
     root.mainloop()
+
+
+# Testing geometry builder gui features
+
+'''
+class Application(tk.Frame):
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.master = master
+        self.pack()
+        self.create_widgets()
+
+    def create_widgets(self):
+        # Create canvas
+        self.canvas = tk.Canvas(self, width=500, height=500, bg="white")
+        self.canvas.pack(side="left")
+
+        # Create shapes
+        self.line_button = tk.Button(self, text="Line", command=self.create_line)
+        self.line_button.pack()
+        self.rectangle_button = tk.Button(self, text="Rectangle", command=self.create_rectangle)
+        self.rectangle_button.pack()
+        self.circle_button = tk.Button(self, text="Circle", command=self.create_circle)
+        self.circle_button.pack()
+
+    def create_line(self):
+        # Get start and end points from user input
+        start_x = input("Start X: ")
+        start_y = input("Start Y: ")
+        end_x = input("End X: ")
+        end_y = input("End Y: ")
+
+        # Draw line on canvas
+        self.canvas.create_line(start_x, start_y, end_x, end_y)
+
+    def create_rectangle(self):
+        # Get top-left and bottom-right points from user input
+        top_left_x = input("Top-left X: ")
+        top_left_y = input("Top-left Y: ")
+        bottom_right_x = input("Bottom-right X: ")
+        bottom_right_y = input("Bottom-right Y: ")
+
+        # Draw rectangle on canvas
+        self.canvas.create_rectangle(top_left_x, top_left_y, bottom_right_x, bottom_right_y)
+
+    def create_circle(self):
+        # Get center point and radius from user input
+        center_x = input("Center X: ")
+        center_y = input("Center Y: ")
+        radius = input("Radius: ")
+
+        # Draw circle on canvas
+        self.canvas.create_oval(center_x - radius, center_y - radius, center_x + radius, center_y + radius)
+
+root = tk.Tk()
+app = Application(master=root)
+app.mainloop()
+'''
