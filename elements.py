@@ -4,8 +4,8 @@ import pandas as pd
 import os
 
 
-class cst_element:
-    def __init__(self, x_cord, y_cord, node_list, E, v, t):
+class element:
+    def __init__(self, element_type, x_cord, y_cord, node_list, E, v, t):
         """
             Initiates element class object.
 
@@ -17,9 +17,39 @@ class cst_element:
                 v (int): Poisson's ratio.
                 t (int): Shell thickness.
         """
+        
+        x_cord += [0] * 30
+        y_cord += [0] * 30
 
-        self.x_cord = [float(x) for x in x_cord]                                                
-        self.y_cord = [float(y) for y in y_cord]
+        element_library = {
+            "s3":{
+                "area":[
+                    [1, x_cord[0], y_cord[0]],
+                    [1, x_cord[1], y_cord[1]],
+                    [1, x_cord[2], y_cord[2]]
+                ],
+                "shape_functions":{
+                    "b1":y_cord[1] - y_cord[2],
+                    "b2":y_cord[2] - y_cord[0],
+                    "b3":y_cord[0] - y_cord[1],
+                    "c1":x_cord[2] - x_cord[1],
+                    "c2":x_cord[0] - x_cord[2],
+                    "c3":x_cord[1] - x_cord[0],
+                },
+                "strain_displacement":[
+                    ["b1", 0, "b2", 0, "b3", 0],
+                    [0, "c1", 0, "c2", 0, "c3"],
+                    ["c1", "b1", "c2", "b2", "c3", "b3"]
+                ],    
+                "stress_strain":[
+                    [1, v, 0],
+                    [v, 1, 0],
+                    [0, 0, (1-v)/2]
+                ]
+            }
+        }
+
+        self.element_structure = element_library[element_type]
         self.node_list = node_list
 
         self.E = float(E)
@@ -36,13 +66,8 @@ class cst_element:
         """
             Calculates element area.
         """
-
-        area = np.array([
-            [1, self.x_cord[0], self.y_cord[0]],
-            [1, self.x_cord[1], self.y_cord[1]],
-            [1, self.x_cord[2], self.y_cord[2]]
-        ])
         
+        area = np.array(self.element_structure["area"])
         self.area = np.linalg.det(area) * 0.5
 
 
@@ -50,19 +75,14 @@ class cst_element:
         """
             Defines the strain-displacement matrix [B] as a numpy array.
         """
-        b1 = self.y_cord[1] - self.y_cord[2]                                                
-        b2 = self.y_cord[2] - self.y_cord[0]
-        b3 = self.y_cord[0] - self.y_cord[1]
-        c1 = self.x_cord[2] - self.x_cord[1]
-        c2 = self.x_cord[0] - self.x_cord[2]
-        c3 = self.x_cord[1] - self.x_cord[0]
 
-        B = np.array([
-            [b1, 0, b2, 0, b3, 0],
-            [0, c1, 0, c2, 0, c3],
-            [c1, b1, c2, b2, c3, b3]
-        ])
+        B = self.element_structure["strain_displacement"]
+        for row in range(0, len(B)):
+            for col in range(0, len(B[row])):
+                if B[row][col] != 0:
+                    B[row][col] = self.element_structure["shape_functions"][B[row][col]]
         
+        B = np.array(B)
         self.B = B * (1/(2*self.area))
 
 
@@ -71,12 +91,7 @@ class cst_element:
             Defines stress-stain matrix [D] as numpy array.
         """
 
-        D = np.array([
-            [1, self.v, 0],
-            [self.v, 1, 0],
-            [0, 0, (1-self.v)/2]
-        ])
-
+        D = np.array(self.element_structure["stress_strain"])
         self.D = D * (self.E/(1-self.v**2))
 
 
@@ -106,7 +121,7 @@ if __name__ == "__main__":
     """
 
     wk_dir = os.path.dirname(os.path.realpath(__file__))
-    input = model.load_input(wk_dir + "/inp/Job-7.inp")
+    input = model.load_input(wk_dir + "/inp/plate_simple_disp.inp")
     test_model = model.call_gen_function(input)
     node_list = test_model["elements"][1]["nodes"]
     x_cord = []
@@ -115,7 +130,8 @@ if __name__ == "__main__":
         x_cord.append(test_model["nodes"][node][0])
         y_cord.append(test_model["nodes"][node][1])
             
-    cst = cst_element(
+    cst = element(
+        "s3",
         x_cord,
         y_cord,
         node_list,
