@@ -2,3 +2,4 @@ __pycache__/
 .venv/
 /config_user.json
 *stiffness_matrix.csv
+*matrix*
