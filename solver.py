@@ -225,6 +225,11 @@ class solver:
         for index, displacement in displacements.items():
             self.displacements._set_value(index, displacement * homogeneous_correction)
 
+        if self.save_matrix:
+            self.displacements.to_csv(
+                self.out_dir + "/displacements_results_matrix.csv"
+            )
+
     def compute_normal_stress(self):
         """
         Calculates element in-plane stresses.
