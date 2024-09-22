@@ -8,8 +8,6 @@ matrix = [
         7500,
         -8076.92307692307,
         7500,
-        0,
-        -7500,
         -22500,
     ],
     [
@@ -19,79 +17,15 @@ matrix = [
         -8076.92307692307,
         7500,
         -23076.9230769231,
-        -7500,
-        0,
         -22500,
     ],
-    [
-        -23076.9230769231,
-        7500,
-        31153.8461538461,
-        -7500,
-        0,
-        0,
-        -4038.46153846154,
-        3461.53846153846,
-        -1730.76923076923,
-    ],
-    [
-        7500,
-        -8076.92307692307,
-        -7500,
-        31153.8461538461,
-        0,
-        0,
-        4038.46153846154,
-        -11538.4615384615,
-        -22500,
-    ],
-    [
-        -8076.92307692307,
-        7500,
-        0,
-        0,
-        31153.8461538461,
-        -7500,
-        -11538.4615384615,
-        4038.46153846154,
-        -22500,
-    ],
-    [
-        7500,
-        -23076.9230769231,
-        0,
-        0,
-        -7500,
-        31153.8461538461,
-        3461.53846153846,
-        -4038.46153846154,
-        -1730.76923076923,
-    ],
-    [
-        0,
-        -7500,
-        -4038.46153846154,
-        4038.46153846154,
-        -11538.4615384615,
-        3461.0,
-        53846153846,
-        15576.9230769231,
-        46730.7692307692,
-    ],
-    [
-        -7500,
-        0,
-        3461.53846153846,
-        -11538.4615384615,
-        4038.46153846154,
-        -4038.46153846154,
-        0,
-        15576.9230769231,
-        46730.7692307692,
-    ],
+    [-23076.9230769231, 7500, 31153.8461538461, -7500, 0, 0, -1730.76923076923],
+    [7500, -8076.92307692307, -7500, 31153.8461538461, 0, 0, -22500],
+    [-8076.92307692307, 7500, 0, 0, 31153.8461538461, -7500, -22500],
+    [7500, -23076.9230769231, 0, 0, -7500, 31153.8461538461, -1730.76923076923],
 ]
 
-matrix_test = [[3, 4, 2, 37], [6, 2, 3, 47], [2, 7, 4, 50]]
+matrix_test = [[3, 4, 2, 45], [6, 2, 3, 59], [2, 7, 4, 66]]
 
 matrix_k = [i[:-1] for i in matrix]
 matrix_f = [i[-1] for i in matrix]
@@ -100,7 +34,7 @@ print(matrix_k)
 print(matrix_f)
 
 
-index = ["5u", "5v", "6u", "6v", "8u", "8v", "9u", "9v"]
+index = ["5u", "5v", "6u", "6v", "8u", "8v"]
 # index = ["x1", "x2", "x3"]
 
 
@@ -133,9 +67,9 @@ def eliminate_df(stiffness, force, column):
             multi = stiffness.iloc[row, column] / base_row.iloc[column]
             # print("***", multi)
             base_row_temp = base_row * multi
-            stiffness.iloc[row] = (stiffness.iloc[row] - base_row_temp).round(6)
+            stiffness.iloc[row] = (stiffness.iloc[row] - base_row_temp).round(9)
             # print(force.iloc[row], force.iloc[column])
-            force.iloc[row] = (force.iloc[row] - (force.iloc[column] * multi)).round(6)
+            force.iloc[row] = (force.iloc[row] - (force.iloc[column] * multi)).round(9)
             # print(force.iloc[row])
 
     return stiffness, force
@@ -168,7 +102,7 @@ def eliminate(matrix, column):
             top_row_temp = [value * multi for value in top_row]
             for ii in range(0, len(matrix[row])):
                 new_value = matrix[row][ii] - top_row_temp[ii]
-                matrix[row][ii] = round(new_value, 6)
+                matrix[row][ii] = round(new_value, 9)
 
     return matrix
 
@@ -193,3 +127,4 @@ for i in range(0, len(matrix_k_df)):
 # print(matrix_f_df.head())
 disp = solve_unknowns(matrix_k_df, matrix_f_df)
 print(disp.head())
+print(disp.tail())
