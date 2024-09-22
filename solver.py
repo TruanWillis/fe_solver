@@ -1,5 +1,6 @@
 import model
 import elements
+import direct_solver
 
 import math as m
 import numpy as np
@@ -12,7 +13,7 @@ import matplotlib.pyplot as plt
 
 
 class solver:
-    def __init__(self, model, print_head, save_matrix, out_dir):
+    def __init__(self, model, fe_solver, print_head, save_matrix, out_dir):
         """
         Initiates solver class object.
 
@@ -24,6 +25,7 @@ class solver:
         """
 
         self.model = model
+        self.fe_solver = fe_solver
         self.dof = len(self.model["nodes"].keys()) * 2
 
         self.homogeneous_model = True
@@ -97,8 +99,6 @@ class solver:
                             self.forces._set_value(
                                 str(n) + disp, self.model["load"][load][axis]
                             )
-        if self.save_matrix:
-            self.forces.to_csv(self.out_dir + "/forces_matrix.csv")
 
     def define_element_stiffness(self):
         """
@@ -166,10 +166,7 @@ class solver:
 
         if self.save_matrix:
             self.global_stiffness_matrix_save.to_csv(
-                self.out_dir + "/stiffness_matrix_e.csv"
-            )
-            self.global_stiffness_matrix.to_csv(
-                self.out_dir + "/stiffness_matrix_v.csv"
+                self.out_dir + "/stiffness_matrix.csv"
             )
 
     def reduce_matrix(self):
@@ -208,14 +205,20 @@ class solver:
         Calculates nodal displacements as a function of global stiffness matrix and applied forces.
         """
 
-        global_stiffness_matrix = self.global_stiffness_matrix_reduced.to_numpy()
-        forces = self.forces.to_numpy()
+        if self.fe_solver:
+            displacements = direct_solver.gaussianElimination(
+                self.global_stiffness_matrix_reduced, self.forces
+            ).displacements
 
-        global_stiffness_matrix = global_stiffness_matrix.astype("float64")
-        forces = forces.astype("float64")
+        else:
+            global_stiffness_matrix = self.global_stiffness_matrix_reduced.to_numpy()
+            forces = self.forces.to_numpy()
 
-        displacement_solution = np.linalg.solve(global_stiffness_matrix, forces)
-        displacements = pd.Series(displacement_solution, index=self.forces.index)
+            global_stiffness_matrix = global_stiffness_matrix.astype("float64")
+            forces = forces.astype("float64")
+
+            displacement_solution = np.linalg.solve(global_stiffness_matrix, forces)
+            displacements = pd.Series(displacement_solution, index=self.forces.index)
 
         if self.homogeneous_model:
             homogeneous_correction = 1
@@ -224,11 +227,6 @@ class solver:
 
         for index, displacement in displacements.items():
             self.displacements._set_value(index, displacement * homogeneous_correction)
-
-        if self.save_matrix:
-            self.displacements.to_csv(
-                self.out_dir + "/displacements_results_matrix.csv"
-            )
 
     def compute_normal_stress(self):
         """

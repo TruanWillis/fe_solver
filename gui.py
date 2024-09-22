@@ -6,24 +6,27 @@ import os, timeit
 import model, solver, plot
 
 
-class gui():
+class gui:
     def __init__(self, root, config):
         """
-            Initiates gui class object.
+        Initiates gui class object.
 
-            Args:
-                root (object): TKinter tk class object.
-                config (dict): User configurable values.
+        Args:
+            root (object): TKinter tk class object.
+            config (dict): User configurable values.
         """
 
         self.window_name = config["name"] + " " + config["version"]
         self.scale = config["scale"]
         self.print_head = config["print_head"]
         self.save_matrix = config["save_matrix"]
+        self.fe_solver = config["fe_solver"]
 
         root.title(self.window_name)
         root.geometry("450x600")
-        icon = tk.PhotoImage(file=os.path.dirname(os.path.realpath(__file__)) + "/media/icon.png")
+        icon = tk.PhotoImage(
+            file=os.path.dirname(os.path.realpath(__file__)) + "/media/icon.png"
+        )
         root.iconphoto(True, icon)
 
         frame = tk.Frame(root)
@@ -34,13 +37,19 @@ class gui():
         self.dir_name_text.set("Working directory")
         self.inp_name_text.set("Input file")
 
-        dir_button = tk.Button(frame, textvariable=self.dir_name_text, command=self.select_dir)
-        inp_button = tk.Button(frame, textvariable=self.inp_name_text, command=self.select_inp)
-        model_button = tk.Button(frame, text='Generate model', command=self.model_generate)
-        solve_button = tk.Button(frame, text='Solve model', command=self.model_solve)
-        plot_button = tk.Button(frame, text='Plot results', command=self.plot_results)
+        dir_button = tk.Button(
+            frame, textvariable=self.dir_name_text, command=self.select_dir
+        )
+        inp_button = tk.Button(
+            frame, textvariable=self.inp_name_text, command=self.select_inp
+        )
+        model_button = tk.Button(
+            frame, text="Generate model", command=self.model_generate
+        )
+        solve_button = tk.Button(frame, text="Solve model", command=self.model_solve)
+        plot_button = tk.Button(frame, text="Plot results", command=self.plot_results)
         quit_button = tk.Button(frame, text="Quit", command=root.destroy)
-        self.log = tk.Text(frame, state='disabled', height="200", wrap='char')     
+        self.log = tk.Text(frame, state="disabled", height="200", wrap="char")
 
         frame.pack(fill="both", expand=True)
         dir_button.pack(fill="both", expand=True)
@@ -55,77 +64,70 @@ class gui():
 
     def writeToLog(self, msg):
         """
-            Writes text to gui log.
+        Writes text to gui log.
 
-            Args:
-                msg (string): Text to display.
+        Args:
+            msg (string): Text to display.
         """
 
-        numlines = int(self.log.index('end - 1 line').split('.')[0])
-        self.log['state'] = 'normal'
-        if numlines==24:
+        numlines = int(self.log.index("end - 1 line").split(".")[0])
+        self.log["state"] = "normal"
+        if numlines == 24:
             self.log.delete(1.0, 2.0)
-        if self.log.index('end-1c')!='1.0':
-            self.log.insert('end', '\n')
-        self.log.insert('end', msg)
-        self.log['state'] = 'disabled'
-        
+        if self.log.index("end-1c") != "1.0":
+            self.log.insert("end", "\n")
+        self.log.insert("end", msg)
+        self.log["state"] = "disabled"
 
     def select_dir(self):
         """
-            Button function to select working directory.
+        Button function to select working directory.
         """
 
-        self.dir_name = filedialog.askdirectory(
-            title="Select working directory"
-        )
+        self.dir_name = filedialog.askdirectory(title="Select working directory")
 
-        '''
+        """
         showinfo(
             title="Selected directory",
             message=self.dir_name
         )    
-        '''
-        
+        """
+
         self.dir_name_text.set("..." + self.dir_name[-25:])
         self.writeToLog("Working directory selected...")
         self.writeToLog(self.dir_name)
 
-
     def select_inp(self):
         """
-            Button function to select inp file.
+        Button function to select inp file.
         """
 
         filetypes = (
             ("inp file", "*.inp"),
             ("text files", "*.txt"),
-            ("all files", "*.*")
+            ("all files", "*.*"),
         )
 
         self.inp_name = filedialog.askopenfilename(
-            title='Select input file',
-            initialdir=self.dir_name,
-            filetypes=filetypes
-            )
-        
+            title="Select input file", initialdir=self.dir_name, filetypes=filetypes
+        )
+
         self.inp_name = os.path.basename(self.inp_name)
 
-        '''
+        """
         showinfo(
             title='Selected File',
             message=self.inp_name
             )
-        '''
-            
+        """
+
         self.inp_name_text.set(self.inp_name)
         self.writeToLog("Input file selected...")
         self.writeToLog(self.inp_name)
 
-
     def model_generate(self):
         """
-            Button function to generate model from selected inp file.
+        Button function to generate model from selected inp file.
         """
 
         self.writeToLog("Generating model " + self.inp_name + "...")
@@ -139,39 +141,48 @@ class gui():
         except Exception as e:
             self.writeToLog(str(e))
 
-
     def model_solve(self):
         """
-            Button function to solve model.
+        Button function to solve model.
         """
 
         self.solver_start = timeit.default_timer()
-        self.writeToLog("Solving model "  + self.inp_name + "...")
+        self.writeToLog("Solving model " + self.inp_name + "...")
         self.call_solver()
-
 
     def call_solver(self):
         """
-            Calls solver function.
+        Calls solver function.
         """
 
+        if self.fe_solver:
+            self.writeToLog("Direct solver: fe_solver")
+        else:
+            self.writeToLog("Direct solver: numpy")
         try:
-            self.s = solver.solver(self.model, self.print_head, self.save_matrix, self.dir_name)
+            self.s = solver.solver(
+                self.model,
+                self.fe_solver,
+                self.print_head,
+                self.save_matrix,
+                self.dir_name,
+            )
             self.solver_end = timeit.default_timer()
             duration = self.solver_end - self.solver_start
             self.writeToLog("...complete [{:.3f}s]".format(duration))
         except Exception as e:
             self.writeToLog(str(e))
 
-
-    def plot_results(self):    
+    def plot_results(self):
         """
-            Button function to plot solver results.
+        Button function to plot solver results.
         """
 
-        self.writeToLog("Plotting results "  + self.inp_name + ", close to continue...")
+        self.writeToLog("Plotting results " + self.inp_name + ", close to continue...")
         try:
-            plot.plot_results(self.model, self.s, self.scale, self.window_name, self.save_matrix)
+            plot.plot_results(
+                self.model, self.s, self.scale, self.window_name, self.save_matrix
+            )
             self.writeToLog("...closed")
         except Exception as e:
             self.writeToLog(str(e))
@@ -185,21 +196,16 @@ def run(config):
         config (dict): User configurable values.
     """
 
-    root=tk.Tk()
+    root = tk.Tk()
     gui(root, config)
     root.mainloop()
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     """
-        __main__ used for development purposes.
+    __main__ used for development purposes.
     """
-    
+
     root = tk.Tk()
-    gui(
-        root,
-        {"name":"Test",
-        "version":"0.0.0",
-        "disclaimer":""}
-        )
+    gui(root, {"name": "Test", "version": "0.0.0", "disclaimer": ""})
     root.mainloop()
