@@ -1,9 +1,14 @@
 import tkinter as tk
 from tkinter import filedialog
-from tkinter.messagebox import showinfo
 
-import os, timeit
-import model, solver, plot
+# from tkinter.messagebox import showinfo
+
+import os
+import timeit
+
+import model
+import solver
+import plot
 
 
 class gui:

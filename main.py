@@ -1,5 +1,6 @@
 import gui
-import os, json
+import os
+import json
 
 config = {
     "name": "FEsolver",

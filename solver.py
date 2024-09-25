@@ -9,7 +9,7 @@ import pprint
 import os
 from tabulate import tabulate
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 
 class solver:
@@ -281,7 +281,7 @@ class solver:
                     angle = -0.5 * m.atan((2 * Sxy) / (Sx - Sy))
                     opp = m.sin(angle) * s1
                     adj = m.cos(angle) * s1
-                except:
+                except Exception:
                     angle = 0
                     opp = 0
                     adj = s1
