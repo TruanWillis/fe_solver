@@ -65,7 +65,7 @@ class gui:
         quit_button.pack(fill="both", expand=True)
         self.log.pack(fill="both", expand=True)
 
-        self.writeToLog(config["disclaimer"])
+        self.writeToLog(config["disclaimer"] + "\n")
 
     def writeToLog(self, msg):
         """
@@ -100,7 +100,7 @@ class gui:
 
         self.dir_name_text.set("..." + self.dir_name[-25:])
         self.writeToLog("Working directory selected...")
-        self.writeToLog(self.dir_name)
+        self.writeToLog(self.dir_name + "\n")
 
     def select_inp(self):
         """
@@ -128,13 +128,14 @@ class gui:
 
         self.inp_name_text.set(self.inp_name)
         self.writeToLog("Input file selected...")
-        self.writeToLog(self.inp_name)
+        self.writeToLog(self.inp_name + "\n")
 
     def model_generate(self):
         """
         Button function to generate model from selected inp file.
         """
 
+        model_start = timeit.default_timer()
         self.writeToLog("Generating model " + self.inp_name + "...")
         try:
             input = model.load_input(self.dir_name + "/" + self.inp_name)
@@ -142,7 +143,9 @@ class gui:
             self.writeToLog("Nodes: " + str(self.model["node count"]))
             self.writeToLog("Elements: " + str(self.model["element count"]))
             self.writeToLog("DOF: " + str(self.model["dof"]))
-            self.writeToLog("...complete")
+            model_end = timeit.default_timer()
+            duration = model_end - model_start
+            self.writeToLog("...complete [{:.3f}s]".format(duration) + "\n")
         except Exception as e:
             self.writeToLog(str(e))
 
@@ -174,7 +177,7 @@ class gui:
             )
             self.solver_end = timeit.default_timer()
             duration = self.solver_end - self.solver_start
-            self.writeToLog("...complete [{:.3f}s]".format(duration))
+            self.writeToLog("...complete [{:.3f}s]".format(duration) + "\n")
         except Exception as e:
             self.writeToLog(str(e))
 
@@ -188,7 +191,7 @@ class gui:
             plot.plot_results(
                 self.model, self.s, self.scale, self.window_name, self.save_matrix
             )
-            self.writeToLog("...closed")
+            self.writeToLog("...closed" + "\n")
         except Exception as e:
             self.writeToLog(str(e))
 
