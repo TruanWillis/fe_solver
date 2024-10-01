@@ -1,6 +1,11 @@
-import numpy as np
 import math as m
+
 import matplotlib.pyplot as plt
+import numpy as np
+
+
+def fname(test1, test2):
+    return test1 + test2
 
 
 def plot_results(model, solution, deformation_scale, window_name, plot_matrix):

@@ -1,6 +1,7 @@
-import gui
-import os
 import json
+import os
+
+import gui
 
 config = {
     "name": "FEsolver",
@@ -18,7 +19,8 @@ config_user = {
     "scale": 2,
 }
 
-config_user_filepath = os.path.dirname(os.path.realpath(__file__)) + "/config_user.json"
+config_user_filepath = os.path.dirname(
+    os.path.realpath(__file__)) + "/config_user.json"
 
 if __name__ == "__main__":
     if os.path.exists(config_user_filepath):

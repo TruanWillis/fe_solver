@@ -1,7 +1,9 @@
-import model
+import os
+
 import numpy as np
 import pandas as pd
-import os
+
+import model
 
 
 class element:
@@ -133,4 +135,3 @@ if __name__ == "__main__":
     )
 
     print(cst.area)
-

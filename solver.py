@@ -1,13 +1,14 @@
-import model
-import elements
-import direct_solver
-
 import math as m
+import os
+import pprint
+
 import numpy as np
 import pandas as pd
-import pprint
-import os
 from tabulate import tabulate
+
+import direct_solver
+import elements
+import model
 
 # import matplotlib.pyplot as plt
 
@@ -39,7 +40,8 @@ class solver:
 
         self.forces = pd.Series(np.zeros(self.dof), index=self.node_headings)
 
-        self.displacements = pd.Series(["*"] * self.dof, index=self.node_headings)
+        self.displacements = pd.Series(
+            ["*"] * self.dof, index=self.node_headings)
 
         self.element_index = [
             "e" + str(element) for element in self.model["elements"].keys()
@@ -73,11 +75,13 @@ class solver:
                         elif axis == "2":
                             disp = "v"
                         self.displacements._set_value(
-                            str(n) + disp, self.model["boundary"][boundary][axis]
+                            str(n) +
+                            disp, self.model["boundary"][boundary][axis]
                         )
 
         if self.save_matrix:
-            self.displacements.to_csv(self.out_dir + "/displacements_matrix.csv")
+            self.displacements.to_csv(
+                self.out_dir + "/displacements_matrix.csv")
 
     def define_load(self):
         """
@@ -150,7 +154,8 @@ class solver:
                     value = self.global_stiffness_matrix._get_value(
                         index, column
                     ) + element_stiffness_matrix._get_value(index, column)
-                    self.global_stiffness_matrix._set_value(index, column, value)
+                    self.global_stiffness_matrix._set_value(
+                        index, column, value)
 
                     if self.save_matrix:
                         ident = self.global_stiffness_matrix_save._get_value(
@@ -171,7 +176,8 @@ class solver:
 
     def reduce_matrix(self):
         """
-        Reduces global stiffness matrix by removing nodal DOF where a constrained boundary condition is defined.
+        Reduces global stiffness matrix by removing nodal DOF where a
+        constrained boundary condition is defined.
         """
 
         self.global_stiffness_matrix_reduced = self.global_stiffness_matrix.copy()
@@ -191,7 +197,8 @@ class solver:
                     displacements_temp._set_value(index, u)
 
         if not self.homogeneous_model:
-            self.forces = self.global_stiffness_matrix_reduced.dot(displacements_temp)
+            self.forces = self.global_stiffness_matrix_reduced.dot(
+                displacements_temp)
 
             for index, u in displacements_temp.items():
                 if u != 0:
@@ -202,7 +209,8 @@ class solver:
 
     def compute_displacements(self):
         """
-        Calculates nodal displacements as a function of global stiffness matrix and applied forces.
+        Calculates nodal displacements as a function of global stiffness matrix
+        and applied forces.
         """
 
         if self.fe_solver:
@@ -217,8 +225,10 @@ class solver:
             global_stiffness_matrix = global_stiffness_matrix.astype("float64")
             forces = forces.astype("float64")
 
-            displacement_solution = np.linalg.solve(global_stiffness_matrix, forces)
-            displacements = pd.Series(displacement_solution, index=self.forces.index)
+            displacement_solution = np.linalg.solve(
+                global_stiffness_matrix, forces)
+            displacements = pd.Series(
+                displacement_solution, index=self.forces.index)
 
         if self.homogeneous_model:
             homogeneous_correction = 1
@@ -226,7 +236,8 @@ class solver:
             homogeneous_correction = -1
 
         for index, displacement in displacements.items():
-            self.displacements._set_value(index, displacement * homogeneous_correction)
+            self.displacements._set_value(
+                index, displacement * homogeneous_correction)
 
     def compute_normal_stress(self):
         """
@@ -292,7 +303,8 @@ class solver:
         Calculates element von Mises stress
         """
 
-        self.stress_mises = pd.DataFrame(index=self.element_index, columns=["s_mises"])
+        self.stress_mises = pd.DataFrame(
+            index=self.element_index, columns=["s_mises"])
 
         for index, row in self.stress_normal.iterrows():
             sigma_1 = row[0]
@@ -306,7 +318,8 @@ class solver:
 
     def print_results(self):
         """
-        Prints in-plane, principal and mises stress dataFrame heads to terminal.
+        Prints in-plane, principal and mises stress dataFrame heads to
+        terminal.
         """
 
         print("\n" + "In-plane stress...")
@@ -347,7 +360,7 @@ if __name__ == "__main__":
     pp = pprint.PrettyPrinter(indent=4)
     input = model.load_input(wk_dir + "/test_data/test_input_1.inp")
     model = model.call_gen_function(input)
-    s = solver(model, True, True, wk_dir + "/")
+    s = solver(model, True, True, True, wk_dir + "/")
 
     # pp.pprint(s.__dict__.keys())
     pp.pprint(s.displacements)
@@ -358,7 +371,7 @@ if __name__ == "__main__":
     sm = s.global_stiffness_matrix
     print(sm.head())
 
-    x = np.repeat(np.arange(0.5, s.dof + 0.5, 1), s.dof) 
+    x = np.repeat(np.arange(0.5, s.dof + 0.5, 1), s.dof)
     y = np.arange(0.5, s.dof + 0.5, 1)
     y = np.tile(y, s.dof)
 
@@ -368,17 +381,17 @@ if __name__ == "__main__":
     for index, row in sm.iterrows():
         v_row = [abs(i)/max_value for i in list(row)]
         v.extend(v_row)
-    
-    marker_size = 3600 / s.dof 
-    
+
+    marker_size = 3600 / s.dof
+
     fig, ax = plt.subplots()
     print(fig, ax)
     ax.scatter(x, y, marker='s', alpha=v, s=marker_size)
-    
+
     if s.dof < 300:
         ax.grid(True, linewidth=0.5)
 
-    ticks = np.arange(0, s.dof + 2, 2)         
+    ticks = np.arange(0, s.dof + 2, 2)
     ax.set_xticks(ticks)
     ax.set_yticks(ticks)
 

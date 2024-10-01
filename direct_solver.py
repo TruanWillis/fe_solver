@@ -8,7 +8,7 @@ class gaussianElimination:
 
         Args:
             stiffness (dataframe): Global stiffness matrix.
-            force (seriesn): Applied nodal forces.
+            force (series): Applied nodal forces.
         """
 
         self.stiffness = stiffness
@@ -22,7 +22,8 @@ class gaussianElimination:
 
     def forward_elimination(self, stiffness, force, column):
         """
-        Applied forward elimination to reduce stiffness matrix to upper triangle.
+        Applied forward elimination to reduce stiffness matrix to upper
+        triangle.
         """
 
         base_row = stiffness.iloc[column]
@@ -35,12 +36,11 @@ class gaussianElimination:
                 force.iloc[row] = (
                     force.iloc[row] - (force.iloc[column] * multi)
                 ).round(9)
-
         return stiffness, force
 
     def back_subtract(self, stiffness, force):
         """
-        Back back_subtract upper triangle to solve unknow displacements
+        Back back_subtract upper triangle to solve unknown displacements
         """
 
         displacements = pd.Series(0, index=stiffness.index)
