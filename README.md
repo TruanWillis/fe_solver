@@ -50,9 +50,9 @@ configurable options are available:
 
 1. `print_head` (boolean) - prints the panda's head for normal, principal and
    von Mises stress results
-2. `fe_solver` (boolean) - applies fe*solver to compute displacements, \_False*
-   applies _numpy_.
-3. `save_matrix` (boolean) - saves stiffness matrix to _stiffness_matrix,csv_
+2. `fe_solver` (boolean) - applies FEsolver code to compute displacements,
+   _False_ applies _numpy_.
+3. `save_matrix` (boolean) - saves stiffness matrix to _stiffness_matrix.csv_
 4. `scale` (integer) - result plot deformation scale
 
 ### Running
