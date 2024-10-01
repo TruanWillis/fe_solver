@@ -1,6 +1,6 @@
 <div style="text-align: right">
 
-## ![image info](./media/icon.png)
+[image info](./media/icon.png)
 
 </div>
 
