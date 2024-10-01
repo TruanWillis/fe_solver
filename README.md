@@ -1,6 +1,6 @@
 # FEsolver
 
----
+## ![image info](./media/icon.png)
 
 ## Table of Contents
 
