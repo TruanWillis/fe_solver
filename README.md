@@ -1,3 +1,9 @@
+<div style="text-align: right">
+
+## ![image info](./media/icon.png)
+
+</div>
+
 # FEsolver
 
 ## ![image info](./media/icon.png)
