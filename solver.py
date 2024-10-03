@@ -20,6 +20,7 @@ class solver:
 
         Args:
             model (dict): Model defined using keywords.
+            fe_solver (boolean): Uses direct solver/numpy if Ture/False.
             print_head (boolean): Prints stress dataFrame head to terminal.
             save_matrix (boolean): Saves global stiffness matrix as csv.
             out_dir (string): Directory for global stiffness matrix csv.
@@ -40,8 +41,7 @@ class solver:
 
         self.forces = pd.Series(np.zeros(self.dof), index=self.node_headings)
 
-        self.displacements = pd.Series(
-            ["*"] * self.dof, index=self.node_headings)
+        self.displacements = pd.Series(["*"] * self.dof, index=self.node_headings)
 
         self.element_index = [
             "e" + str(element) for element in self.model["elements"].keys()
@@ -75,13 +75,11 @@ class solver:
                         elif axis == "2":
                             disp = "v"
                         self.displacements._set_value(
-                            str(n) +
-                            disp, self.model["boundary"][boundary][axis]
+                            str(n) + disp, self.model["boundary"][boundary][axis]
                         )
 
         if self.save_matrix:
-            self.displacements.to_csv(
-                self.out_dir + "/displacements_matrix.csv")
+            self.displacements.to_csv(self.out_dir + "/displacements_matrix.csv")
 
     def define_load(self):
         """
@@ -154,8 +152,7 @@ class solver:
                     value = self.global_stiffness_matrix._get_value(
                         index, column
                     ) + element_stiffness_matrix._get_value(index, column)
-                    self.global_stiffness_matrix._set_value(
-                        index, column, value)
+                    self.global_stiffness_matrix._set_value(index, column, value)
 
                     if self.save_matrix:
                         ident = self.global_stiffness_matrix_save._get_value(
@@ -197,8 +194,7 @@ class solver:
                     displacements_temp._set_value(index, u)
 
         if not self.homogeneous_model:
-            self.forces = self.global_stiffness_matrix_reduced.dot(
-                displacements_temp)
+            self.forces = self.global_stiffness_matrix_reduced.dot(displacements_temp)
 
             for index, u in displacements_temp.items():
                 if u != 0:
@@ -225,10 +221,8 @@ class solver:
             global_stiffness_matrix = global_stiffness_matrix.astype("float64")
             forces = forces.astype("float64")
 
-            displacement_solution = np.linalg.solve(
-                global_stiffness_matrix, forces)
-            displacements = pd.Series(
-                displacement_solution, index=self.forces.index)
+            displacement_solution = np.linalg.solve(global_stiffness_matrix, forces)
+            displacements = pd.Series(displacement_solution, index=self.forces.index)
 
         if self.homogeneous_model:
             homogeneous_correction = 1
@@ -236,8 +230,7 @@ class solver:
             homogeneous_correction = -1
 
         for index, displacement in displacements.items():
-            self.displacements._set_value(
-                index, displacement * homogeneous_correction)
+            self.displacements._set_value(index, displacement * homogeneous_correction)
 
     def compute_normal_stress(self):
         """
@@ -303,8 +296,7 @@ class solver:
         Calculates element von Mises stress
         """
 
-        self.stress_mises = pd.DataFrame(
-            index=self.element_index, columns=["s_mises"])
+        self.stress_mises = pd.DataFrame(index=self.element_index, columns=["s_mises"])
 
         for index, row in self.stress_normal.iterrows():
             sigma_1 = row[0]
@@ -360,7 +352,7 @@ if __name__ == "__main__":
     pp = pprint.PrettyPrinter(indent=4)
     input = model.load_input(wk_dir + "/test_data/test_input_1.inp")
     model = model.call_gen_function(input)
-    s = solver(model, True, True, True, wk_dir + "/")
+    s = solver(model, False, True, True, wk_dir + "/")
 
     # pp.pprint(s.__dict__.keys())
     pp.pprint(s.displacements)
