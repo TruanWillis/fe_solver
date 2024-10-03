@@ -5,11 +5,12 @@ import gui
 
 config = {
     "name": "FEsolver",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "disclaimer": (
         "FEsolver is a non-commercial 2D plane-stress finite element solver. "
         "The program is distributed with no warranty."
     ),
+    "history": {"0.0.1": "First release", "0.1.0": "FEsolver direct solver added"},
 }
 
 config_user = {
@@ -19,8 +20,7 @@ config_user = {
     "scale": 2,
 }
 
-config_user_filepath = os.path.dirname(
-    os.path.realpath(__file__)) + "/config_user.json"
+config_user_filepath = os.path.dirname(os.path.realpath(__file__)) + "/config_user.json"
 
 if __name__ == "__main__":
     if os.path.exists(config_user_filepath):

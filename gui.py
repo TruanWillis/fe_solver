@@ -29,8 +29,7 @@ class gui:
         root.title(self.window_name)
         root.geometry("450x600")
         icon = tk.PhotoImage(
-            file=os.path.dirname(os.path.realpath(
-                __file__)) + "/media/icon.png"
+            file=os.path.dirname(os.path.realpath(__file__)) + "/media/icon.png"
         )
         root.iconphoto(True, icon)
 
@@ -51,10 +50,8 @@ class gui:
         model_button = tk.Button(
             frame, text="Generate model", command=self.model_generate
         )
-        solve_button = tk.Button(
-            frame, text="Solve model", command=self.model_solve)
-        plot_button = tk.Button(
-            frame, text="Plot results", command=self.plot_results)
+        solve_button = tk.Button(frame, text="Solve model", command=self.model_solve)
+        plot_button = tk.Button(frame, text="Plot results", command=self.plot_results)
         quit_button = tk.Button(frame, text="Quit", command=root.destroy)
         self.log = tk.Text(frame, state="disabled", height="200", wrap="char")
 
@@ -91,8 +88,7 @@ class gui:
         Button function to select working directory.
         """
 
-        self.dir_name = filedialog.askdirectory(
-            title="Select working directory")
+        self.dir_name = filedialog.askdirectory(title="Select working directory")
 
         """
         showinfo(
@@ -189,8 +185,7 @@ class gui:
         Button function to plot solver results.
         """
 
-        self.writeToLog("Plotting results " + self.inp_name +
-                        ", close to continue...")
+        self.writeToLog("Plotting results " + self.inp_name + ", close to continue...")
         try:
             plot.plot_results(
                 self.model, self.s, self.scale, self.window_name, self.save_matrix

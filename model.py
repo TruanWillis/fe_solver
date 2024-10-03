@@ -199,8 +199,7 @@ class generateModel:
                     if len(values) == 3:
                         self.model["boundary"][node][values[1]] = 0.0
                     elif len(values) == 4:
-                        self.model["boundary"][node][values[1]
-                                                     ] = float(values[3])
+                        self.model["boundary"][node][values[1]] = float(values[3])
 
     def gen_load(self, input):
         """
@@ -242,8 +241,7 @@ def call_gen_function(inp_file):
                 keyword_inputs = [line.strip("\n")]
                 line_count_temp = line_count + 1
                 while "*" not in inp_file[line_count_temp]:
-                    keyword_inputs.append(
-                        inp_file[line_count_temp].strip("\n"))
+                    keyword_inputs.append(inp_file[line_count_temp].strip("\n"))
                     line_count_temp += 1
                 function = getattr(model, keywords[keyword])
                 function(keyword_inputs)
