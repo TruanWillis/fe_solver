@@ -20,6 +20,8 @@ class gaussianElimination:
             )
         self.displacements = self.back_subtract(self.stiffness, self.force)
 
+    # TODO: Add multi-proccess functionallity to forward_elimination
+
     def forward_elimination(self, stiffness, force, column):
         """
         Applied forward elimination to reduce stiffness matrix to upper

@@ -5,6 +5,7 @@ import gui
 
 config = {
     "name": "FEsolver",
+    # TODO: Learn and implement versioning
     "version": "0.1.0",
     "disclaimer": (
         "FEsolver is a non-commercial 2D plane-stress finite element solver. "

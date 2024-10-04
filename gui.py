@@ -153,6 +153,8 @@ class gui:
         Button function to solve model.
         """
 
+        # TODO: Fix boton so is can print live statements during solver
+
         self.solver_start = timeit.default_timer()
         self.writeToLog("Solving model " + self.inp_name + "...")
         self.call_solver()
