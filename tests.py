@@ -1,10 +1,10 @@
 import unittest
 
 # import json
-import model
+import core.model as model
 import os
 import pickle
-import solver
+import core.solver as solver
 
 
 wk_dir = os.path.dirname(os.path.realpath(__file__)) + "/test_data/"
