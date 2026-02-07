@@ -3,9 +3,9 @@ import timeit
 import tkinter as tk
 from tkinter import filedialog
 
-import model
-import plot
-import solver
+import core.model as model
+import core.solver as solver
+import gui.plot as plot
 
 # from tkinter.messagebox import showinfo
 
@@ -153,7 +153,7 @@ class gui:
         Button function to solve model.
         """
 
-        # TODO: Fix boton so is can print live statements during solver
+        # TODO: Fix button so is can print live statements during solver
 
         self.solver_start = timeit.default_timer()
         self.writeToLog("Solving model " + self.inp_name + "...")

@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 from tabulate import tabulate
 
-import direct_solver
-import elements
-import model
+import core.direct_solver as direct_solver
+import core.elements as elements
+import core.model as model
 
 # import matplotlib.pyplot as plt
 

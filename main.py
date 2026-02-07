@@ -1,17 +1,19 @@
 import json
 import os
 
-import gui
+import gui.gui as gui
+
+def get_version():
+    with open("VERSION", "r") as file:
+        return file.read().strip()
 
 config = {
     "name": "FEsolver",
-    # TODO: Learn and implement versioning
-    "version": "0.1.0",
+    "version": get_version(),
     "disclaimer": (
         "FEsolver is a non-commercial 2D plane-stress finite element solver. "
         "The program is distributed with no warranty."
     ),
-    "history": {"0.0.1": "First release", "0.1.0": "FEsolver direct solver added"},
 }
 
 config_user = {
