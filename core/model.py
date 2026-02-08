@@ -1,8 +1,8 @@
 # import json
 import os
 import pprint
-
 # import pickle
+from pathlib import Path
 
 
 keywords = {
@@ -79,9 +79,10 @@ class generateModel:
             self.model["nodes"][int(split_line[0])] = [
                 float(split_line[1]),
                 float(split_line[2]),
+                float(split_line[3]),
             ]
         self.model["node count"] = int(len(self.model["nodes"].keys()))
-        self.model["dof"] = int(len(self.model["nodes"].keys()) * 2)
+        self.model["dof"] = int(len(self.model["nodes"].keys()) * 3)
 
     def gen_node_set(self, input):
         """
@@ -269,14 +270,16 @@ if __name__ == "__main__":
     __main__ used for development purposes.
     """
 
-    wk_dir = os.path.dirname(os.path.realpath(__file__))
-    input_file = load_input(wk_dir + "/test_data/test_input_3.inp")
+    test_model = "test_input_1"
+
+    wk_dir = Path(__file__).resolve().parent.parent
+    input_file = load_input(wk_dir / "test_data" / f"{test_model}.inp")
     model = call_gen_function(input_file)
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(model)
 
-    # with open(wk_dir + "/test_data/test_model_1.json", "w") as outfile:
+    # with open(wk_dir / "test_data" / f"{test_model}.json", "w") as outfile:
     #    json.dump(model, outfile, separators=(',', ':'))
-
-    # with open(wk_dir + "/test_data/test_model_3.pickle", "wb") as outfile:
+    #
+    # with open(wk_dir / "test_data" / f"{test_model}.pickle", "wb") as outfile:
     #    pickle.dump(model, outfile)
