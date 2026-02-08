@@ -5,10 +5,11 @@ import pprint
 import numpy as np
 import pandas as pd
 from tabulate import tabulate
+from pathlib import Path
 
-import core.direct_solver as direct_solver
-import core.elements as elements
-import core.model as model
+import direct_solver
+import elements
+import model
 
 # import matplotlib.pyplot as plt
 
@@ -16,7 +17,6 @@ import core.model as model
 class solver:
     def __init__(self, model, fe_solver, print_head, save_matrix, out_dir):
         """
-        Initiates solver class object.
 
         Args:
             model (dict): Model defined using keywords.
@@ -170,7 +170,7 @@ class solver:
 
         if self.save_matrix:
             self.global_stiffness_matrix_save.to_csv(
-                self.out_dir + "/stiffness_matrix.csv"
+                self.out_dir / "stiffness_matrix.csv"
             )
 
     def reduce_matrix(self):
@@ -350,12 +350,14 @@ if __name__ == "__main__":
     __main__ for development purposes.
     """
 
-    wk_dir = os.path.dirname(os.path.realpath(__file__))
-    pp = pprint.PrettyPrinter(indent=4)
-    input = model.load_input(wk_dir + "/test_data/test_input_1.inp")
-    model = model.call_gen_function(input)
-    s = solver(model, False, True, True, wk_dir + "/")
+    test_model = "test_input_1"
 
+    wk_dir = Path(__file__).resolve().parent.parent
+    input = model.load_input(wk_dir / "tests" / "test_data" / f"{test_model}.inp")
+    model = model.call_gen_function(input)
+    s = solver(model, False, True, True, wk_dir)
+
+    pp = pprint.PrettyPrinter(indent=4)
     # pp.pprint(s.__dict__.keys())
     pp.pprint(s.displacements)
     pp.pprint(s.forces)
