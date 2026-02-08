@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 from tabulate import tabulate
 
-import direct_solver
-import elements
-import model
+import core.direct_solver as direct_solver
+import core.elements as elements
+import core.model as model
 
 # import matplotlib.pyplot as plt
 
@@ -28,14 +28,16 @@ class solver:
 
         self.model = model
         self.fe_solver = fe_solver
-        self.dof = len(self.model["nodes"].keys()) * 2
 
         self.homogeneous_model = True
         self.save_matrix = save_matrix
         self.out_dir = out_dir
 
+        node_count = len(self.model["nodes"].keys())
+        self.dof = node_count * 2
+
         self.node_headings = []
-        for n in range(1, int((self.dof / 2) + 1)):
+        for n in range(1, node_count + 1):
             for displacement in ["u", "v"]:
                 self.node_headings.append(str(n) + displacement)
 
@@ -78,8 +80,8 @@ class solver:
                             str(n) + disp, self.model["boundary"][boundary][axis]
                         )
 
-        if self.save_matrix:
-            self.displacements.to_csv(self.out_dir + "/displacements_matrix.csv")
+        # if self.save_matrix:
+        #     self.displacements.to_csv(self.out_dir + "/displacements_matrix.csv")
 
     def define_load(self):
         """
