@@ -33,10 +33,10 @@ class gaussianElimination:
             if stiffness.iloc[row, column] != 0:
                 multi = stiffness.iloc[row, column] / base_row.iloc[column]
                 base_row_temp = base_row * multi
-                stiffness.iloc[row] = (stiffness.iloc[row] - base_row_temp).round(9)
+                stiffness.iloc[row] = (stiffness.iloc[row] - base_row_temp)
                 force.iloc[row] = (
                     force.iloc[row] - (force.iloc[column] * multi)
-                ).round(9)
+                )
         return stiffness, force
 
     def back_subtract(self, stiffness, force):
