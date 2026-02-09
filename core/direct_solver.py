@@ -26,6 +26,7 @@ class gaussianElimination:
 
     def forward_elimination_new(self):
         for i in range(len(self.force)):
+            # TODO: add partial pivot to avoid zero pivot failure
             pivot = self.stiffness[i, i]
             for j in range(i + 1, len(self.force)):
                 factor = self.stiffness[j, i] / pivot
