@@ -1,8 +1,8 @@
-# import json
+import json
 import os
 import numpy as np
 import pprint
-# import pickle
+import pickle
 from pathlib import Path
 
 
@@ -80,10 +80,12 @@ class generateModel:
             self.model["nodes"][int(split_line[0])] = [
                 float(split_line[1]),
                 float(split_line[2]),
-                float(split_line[3]),
+                # TODO: Update to 3D when ready
+                # float(split_line[3]),
             ]
         self.model["node count"] = int(len(self.model["nodes"].keys()))
-        self.model["dof"] = int(len(self.model["nodes"].keys()) * 3)
+        # TODO: Update to 3D when ready
+        self.model["dof"] = int(len(self.model["nodes"].keys()) * 2)
 
     def gen_node_set(self, input):
         """
@@ -225,7 +227,9 @@ class generateModel:
 
     def gen_solver_maps(self):
         label_to_idx = {}
-        dof_suffixes = ['u', 'v', 'w'] 
+        #TODO:Update to 3D when ready
+        dof_suffixes = ['u', 'v'] 
+        # dof_suffixes = ['u', 'v', 'w'] 
         
         count = 0
         for node_id in sorted(self.model['nodes'].keys()):
@@ -257,7 +261,7 @@ class generateModel:
                         active_mask[idx] = False
 
         self.model["label_to_idx"] = label_to_idx
-        self.model["active_mask"] = active_mask
+        self.model["active_mask"] = active_mask.tolist()
 
 
 def call_gen_function(inp_file):
@@ -308,16 +312,16 @@ if __name__ == "__main__":
     __main__ used for development purposes.
     """
 
-    test_model = "test_input_1"
+    test_no = 3
 
     wk_dir = Path(__file__).resolve().parent.parent
-    input_file = load_input(wk_dir / "tests" / "test_data" / f"{test_model}.inp")
+    input_file = load_input(wk_dir / "tests" / "test_data" / f"test_input_{test_no}.inp")
     model = call_gen_function(input_file)
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(model)
 
-    # with open(wk_dir / "tests" / "test_data" / f"{test_model}.json", "w") as outfile:
+    # with open(wk_dir / "tests" / "test_data" / f"test_model_{test_no}.json", "w") as outfile:
     #    json.dump(model, outfile, separators=(',', ':'))
     #
-    # with open(wk_dir / "tests" / "test_data" / f"{test_model}.pickle", "wb") as outfile:
+    # with open(wk_dir / "tests" / "test_data" / f"test_model_{test_no}.pickle", "wb") as outfile:
     #    pickle.dump(model, outfile)
