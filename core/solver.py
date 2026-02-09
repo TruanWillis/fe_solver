@@ -32,7 +32,9 @@ class solver:
         # Assumes model is loaded with a force by default
         self.homogeneous_model = True
         self.save_matrix = save_matrix
-        self.out_dir = out_dir
+        self.out_dir = out_dir / "outputs"
+        if self.save_matrix:
+            Path(self.out_dir).mkdir(parents=True, exist_ok=True)
 
         node_count = len(self.model["nodes"].keys())
         self.dof = node_count * 2
@@ -267,8 +269,8 @@ class solver:
         else:
             # global_stiffness_matrix = self.global_stiffness_matrix_reduced.to_numpy()
             # forces = self.forces.to_numpy()
-            # global_stiffness_matrix = self.global_stiffness_matrix_reduced
-            # forces = self.forces
+            global_stiffness_matrix = self.global_stiffness_matrix_reduced
+            forces = self.forces
 
             global_stiffness_matrix = global_stiffness_matrix.astype("float64")
             forces = forces.astype("float64")
