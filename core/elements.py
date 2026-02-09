@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 
-import model
+from core import model
 
 
 class element:
