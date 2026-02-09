@@ -155,7 +155,7 @@ class generateModel:
                 self.model["section"]["elementset"] = item.split("=")[1]
             elif "material" in item.lower():
                 self.model["section"]["material"] = item.split("=")[1]
-        thickness = self.strip_input(input[1].split(","))[0]
+        thickness = float(self.strip_input(input[1].split(","))[0])
         self.model["section"]["thickness"] = thickness
 
     def gen_material(self, input):
