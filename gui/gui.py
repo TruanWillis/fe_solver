@@ -2,6 +2,7 @@ import os
 import timeit
 import tkinter as tk
 from tkinter import filedialog
+from pathlib import Path
 
 import core.model as model
 import core.solver as solver
@@ -88,7 +89,8 @@ class gui:
         Button function to select working directory.
         """
 
-        self.dir_name = filedialog.askdirectory(title="Select working directory")
+        dir_name = filedialog.askdirectory(title="Select working directory")
+        self.dir_name = Path(dir_name)
 
         """
         showinfo(
@@ -96,10 +98,14 @@ class gui:
             message=self.dir_name
         )
         """
+        if len(str(self.dir_name)) > 25:
+            display_path = f"...{str(self.dir_name)[-25:]}" 
+        else:
+            display_path = str(self.dir_name)
 
-        self.dir_name_text.set("..." + self.dir_name[-25:])
+        self.dir_name_text.set(display_path)
         self.writeToLog("Working directory selected...")
-        self.writeToLog(self.dir_name + "\n")
+        self.writeToLog(f"{self.dir_name}\n")
 
     def select_inp(self):
         """
@@ -137,7 +143,7 @@ class gui:
         model_start = timeit.default_timer()
         self.writeToLog("Generating model " + self.inp_name + "...")
         try:
-            input = model.load_input(self.dir_name + "/" + self.inp_name)
+            input = model.load_input(self.dir_name / self.inp_name)
             self.model = model.call_gen_function(input)
             self.writeToLog("Nodes: " + str(self.model["node count"]))
             self.writeToLog("Elements: " + str(self.model["element count"]))
