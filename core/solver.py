@@ -7,9 +7,9 @@ import pandas as pd
 from tabulate import tabulate
 from pathlib import Path
 
-import direct_solver
-import elements
-import model
+from core import direct_solver
+from core import elements
+from core import model
 
 # import matplotlib.pyplot as plt
 
@@ -29,6 +29,7 @@ class solver:
         self.model = model
         self.fe_solver = fe_solver
 
+        # Assumes model is loaded with a force by default
         self.homogeneous_model = True
         self.save_matrix = save_matrix
         self.out_dir = out_dir
@@ -53,7 +54,8 @@ class solver:
         self.define_global_stiffness()
         self.define_boundary()
         self.define_load()
-        self.reduce_matrix()
+        # self.reduce_matrix()
+        self.reduce_matrix_new()
         self.compute_displacements()
         self.compute_normal_stress()
         self.compute_principal_stress()
@@ -66,6 +68,8 @@ class solver:
         """
         Updates displacements dataSeries with known nodal displacements.
         """
+
+        print(f"Defining boundary conditions")
 
         for boundary in self.model["boundary"]:
             if isinstance(boundary, str):
@@ -80,15 +84,18 @@ class solver:
                             str(n) + disp, self.model["boundary"][boundary][axis]
                         )
 
-        # if self.save_matrix:
-        #     self.displacements.to_csv(self.out_dir + "/displacements_matrix.csv")
+        if self.save_matrix:
+            self.displacements.to_csv(self.out_dir / "displacements_matrix.csv")
 
     def define_load(self):
         """
         Updates forces dataSeries with known applied forces.
         """
 
+        print(f"Defining loads")
+        
         if bool(self.model["load"]) is False:
+            # Model is displacement driven
             self.homogeneous_model = False
         else:
             for load in self.model["load"]:
@@ -108,6 +115,8 @@ class solver:
         """
         Defines element stiffness matrix for all model elements.
         """
+
+        print(f"Generating element stiffness matricies")
 
         for element in self.model["elements"]:
             element_type = self.model["elements"][element]["type"]
@@ -135,49 +144,82 @@ class solver:
         Defines global stiffness matrix based on element stiffness matrices.
         """
 
-        self.global_stiffness_matrix = pd.DataFrame(
-            np.zeros((self.dof, self.dof)),
-            columns=self.node_headings,
-            index=self.node_headings,
-        )
+        print(f"Generating global stiffness matrix")
 
-        if self.save_matrix:
-            self.global_stiffness_matrix_save = self.global_stiffness_matrix.copy()
+        try:
+            self.global_stiffness_matrix = pd.DataFrame(
+                np.zeros((self.dof, self.dof)),
+                columns=self.node_headings,
+                index=self.node_headings,
+            )
 
-        for e in self.model["elements"]:
-            element_stiffness_matrix = self.model["elements"][e][
-                "K"
-            ].element_stiffness_matrix
+            if self.save_matrix:
+                self.global_stiffness_matrix_save = self.global_stiffness_matrix.copy()
 
-            for column in element_stiffness_matrix:
-                for index, row in element_stiffness_matrix.iterrows():
-                    value = self.global_stiffness_matrix._get_value(
-                        index, column
-                    ) + element_stiffness_matrix._get_value(index, column)
-                    self.global_stiffness_matrix._set_value(index, column, value)
+            for e in self.model["elements"]:
+                element_stiffness_matrix = self.model["elements"][e][
+                    "K"
+                ].element_stiffness_matrix
 
-                    if self.save_matrix:
-                        ident = self.global_stiffness_matrix_save._get_value(
+                for column in element_stiffness_matrix:
+                    for index, row in element_stiffness_matrix.iterrows():
+                        value = self.global_stiffness_matrix._get_value(
                             index, column
-                        )
-                        if ident == 0:
-                            ident = "e" + str(e)
-                        else:
-                            ident = ident + ", e" + str(e)
-                        self.global_stiffness_matrix_save._set_value(
-                            index, column, ident
-                        )
+                        ) + element_stiffness_matrix._get_value(index, column)
+                        self.global_stiffness_matrix._set_value(index, column, value)
+
+                        if self.save_matrix:
+                            ident = self.global_stiffness_matrix_save._get_value(
+                                index, column
+                            )
+                            if ident == 0:
+                                ident = "e" + str(e)
+                            else:
+                                ident = ident + ", e" + str(e)
+                            self.global_stiffness_matrix_save._set_value(
+                                index, column, ident
+                            )
+        except Exception as e:
+            print(e)
 
         if self.save_matrix:
             self.global_stiffness_matrix_save.to_csv(
                 self.out_dir / "stiffness_matrix.csv"
             )
 
+    def reduce_matrix_new(self):
+        """
+        Reduces global stiffness matrix by removing nodal DOF where a
+        constrained boundary condition is defined.
+        """
+
+        print(f"Reducing global stiffness matix")
+
+        global_stiffness_matrix = self.global_stiffness_matrix.to_numpy()
+        displacements = self.displacements.to_numpy()
+        mask = self.model["active_mask"]
+
+        if not self.homogeneous_model:
+            displacements[displacements == "*"] = 0.0
+            forces = np.dot(global_stiffness_matrix, displacements)
+        else:
+            forces = self.forces.to_numpy()
+
+        self.global_stiffness_matrix_reduced = global_stiffness_matrix[np.ix_(mask, mask)]
+        forces_reduced = forces[mask]
+        self.forces = forces_reduced
+        self.index_reduced = np.array(self.node_headings)[mask]
+        
+        # self.global_stiffness_matrix_reduced = pd.DataFrame(global_stiffness_matrix_reduced, index=index_reduced, columns=index_reduced)
+        # self.forces = pd.Series(forces_reduced, index=index_reduced)
+
     def reduce_matrix(self):
         """
         Reduces global stiffness matrix by removing nodal DOF where a
         constrained boundary condition is defined.
         """
+
+        print(f"Reducing global stiffness matix")
 
         self.global_stiffness_matrix_reduced = self.global_stiffness_matrix.copy()
         displacements_temp = self.displacements.copy()
@@ -205,26 +247,35 @@ class solver:
                     )
                     self.forces.drop(labels=index, inplace=True)
 
+        if self.save_matrix:
+            self.global_stiffness_matrix_reduced.to_csv(self.out_dir / "stiffness_matrix_reduced.csv")
+            self.forces.to_csv(self.out_dir / "force_array_reduced.csv")
+
     def compute_displacements(self):
         """
         Calculates nodal displacements as a function of global stiffness matrix
         and applied forces.
         """
 
+        print(f"Computing displacements")
+
         if self.fe_solver:
-            displacements = direct_solver.gaussianElimination(
+            displacement_solution = direct_solver.gaussianElimination(
                 self.global_stiffness_matrix_reduced, self.forces
             ).displacements
 
         else:
-            global_stiffness_matrix = self.global_stiffness_matrix_reduced.to_numpy()
-            forces = self.forces.to_numpy()
+            # global_stiffness_matrix = self.global_stiffness_matrix_reduced.to_numpy()
+            # forces = self.forces.to_numpy()
+            # global_stiffness_matrix = self.global_stiffness_matrix_reduced
+            # forces = self.forces
 
             global_stiffness_matrix = global_stiffness_matrix.astype("float64")
             forces = forces.astype("float64")
 
             displacement_solution = np.linalg.solve(global_stiffness_matrix, forces)
-            displacements = pd.Series(displacement_solution, index=self.forces.index)
+            
+        displacements = pd.Series(displacement_solution, index=self.index_reduced)
 
         if self.homogeneous_model:
             homogeneous_correction = 1
@@ -238,6 +289,8 @@ class solver:
         """
         Calculates element in-plane stresses.
         """
+
+        print(f"Computing normal stress")
 
         elements = self.model["elements"].keys()
         self.stress_normal = pd.DataFrame(
@@ -268,6 +321,8 @@ class solver:
         Calculates element principal stresses.
         """
 
+        print(f"Computing principal stress")
+
         self.stress_principal = pd.DataFrame(
             index=self.element_index,
             columns=["s_max", "s_min", "s_shear", "a", "opp", "adj"],
@@ -297,6 +352,8 @@ class solver:
         """
         Calculates element von Mises stress
         """
+
+        print(f"Computing von Mises stress")
 
         self.stress_mises = pd.DataFrame(index=self.element_index, columns=["s_mises"])
 
