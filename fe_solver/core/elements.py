@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from core import model
+from fe_solver.core import model
 
 
 class element:

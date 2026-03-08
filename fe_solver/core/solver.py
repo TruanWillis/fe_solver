@@ -7,9 +7,9 @@ import pandas as pd
 from tabulate import tabulate
 from pathlib import Path
 
-from core import direct_solver
-from core import elements
-from core import model
+from fe_solver.core import direct_solver
+from fe_solver.core import elements
+from fe_solver.core import model
 
 # import matplotlib.pyplot as plt
 

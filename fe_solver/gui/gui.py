@@ -4,28 +4,29 @@ import tkinter as tk
 from tkinter import filedialog
 from pathlib import Path
 
-from .models.model import model
-from .solver.engine import solver
-from .utils.plot import plot
+from fe_solver.core import model
+from fe_solver.core import solver
+from fe_solver.gui import plot
 
 # from tkinter.messagebox import showinfo
 
 
 class gui:
-    def __init__(self, root, config):
+    def __init__(self, root, app_config, user_config):
         """
         Initiates gui class object.
 
         Args:
             root (object): TKinter tk class object.
-            config (dict): User configurable values.
+            app_config (dict): fe_solver configurable values.
+            user_config (dict): User configurable values.
         """
 
-        self.window_name = config["name"] + " " + config["version"]
-        self.scale = config["scale"]
-        self.print_head = config["print_head"]
-        self.save_matrix = config["save_matrix"]
-        self.fe_solver = config["fe_solver"]
+        self.window_name = app_config["name"] + " " + app_config["version"]
+        self.scale = user_config["scale"]
+        self.print_head = user_config["print_head"]
+        self.save_matrix = user_config["save_matrix"]
+        self.fe_solver = user_config["fe_solver"]
 
         root.title(self.window_name)
         root.geometry("450x600")
@@ -65,7 +66,7 @@ class gui:
         quit_button.pack(fill="both", expand=True)
         self.log.pack(fill="both", expand=True)
 
-        self.writeToLog(config["disclaimer"] + "\n")
+        self.writeToLog(app_config["disclaimer"] + "\n")
 
     def writeToLog(self, msg):
         """
@@ -203,16 +204,17 @@ class gui:
             self.writeToLog(str(e))
 
 
-def run(config):
+def run(app_config, user_config):
     """
     Runs gui.
 
     Args:
+        app_config (dict): fe_solver configurable values.
         config (dict): User configurable values.
     """
 
     root = tk.Tk()
-    gui(root, config)
+    gui(root, app_config, user_config)
     root.mainloop()
 
 
