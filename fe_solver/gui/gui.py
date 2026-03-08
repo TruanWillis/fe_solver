@@ -10,6 +10,7 @@ from fe_solver.gui import plot
 
 # from tkinter.messagebox import showinfo
 
+ASSETS = Path(__file__).parent.parent / "assets"
 
 class gui:
     def __init__(self, root, app_config, user_config):
@@ -31,7 +32,7 @@ class gui:
         root.title(self.window_name)
         root.geometry("450x600")
         icon = tk.PhotoImage(
-            file=os.path.dirname(os.path.realpath(__file__)) + "/media/icon.png"
+            file=ASSETS / "icons" / "icon.png"
         )
         root.iconphoto(True, icon)
 
