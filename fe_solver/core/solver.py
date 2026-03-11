@@ -56,8 +56,7 @@ class solver:
         self.define_global_stiffness()
         self.define_boundary()
         self.define_load()
-        # self.reduce_matrix()
-        self.reduce_matrix_new()
+        self.reduce_matrix()
         self.compute_displacements()
         self.compute_normal_stress()
         self.compute_principal_stress()
@@ -189,7 +188,7 @@ class solver:
                 self.out_dir / "stiffness_matrix.csv"
             )
 
-    def reduce_matrix_new(self):
+    def reduce_matrix(self):
         """
         Reduces global stiffness matrix by removing nodal DOF where a
         constrained boundary condition is defined.
@@ -211,47 +210,6 @@ class solver:
         forces_reduced = forces[mask]
         self.forces = forces_reduced
         self.index_reduced = np.array(self.node_headings)[mask]
-        
-        # self.global_stiffness_matrix_reduced = pd.DataFrame(global_stiffness_matrix_reduced, index=index_reduced, columns=index_reduced)
-        # self.forces = pd.Series(forces_reduced, index=index_reduced)
-
-    def reduce_matrix(self):
-        """
-        Reduces global stiffness matrix by removing nodal DOF where a
-        constrained boundary condition is defined.
-        """
-
-        print(f"Reducing global stiffness matix")
-
-        self.global_stiffness_matrix_reduced = self.global_stiffness_matrix.copy()
-        displacements_temp = self.displacements.copy()
-
-        for index, u in self.displacements.items():
-            if u == 0:
-                self.global_stiffness_matrix_reduced.drop(
-                    index=index, columns=index, inplace=True
-                )
-                self.forces.drop(labels=index, inplace=True)
-                displacements_temp.drop(labels=index, inplace=True)
-            else:
-                if u == "*":
-                    displacements_temp._set_value(index, 0.0)
-                else:
-                    displacements_temp._set_value(index, u)
-
-        if not self.homogeneous_model:
-            self.forces = self.global_stiffness_matrix_reduced.dot(displacements_temp)
-
-            for index, u in displacements_temp.items():
-                if u != 0:
-                    self.global_stiffness_matrix_reduced.drop(
-                        index=index, columns=index, inplace=True
-                    )
-                    self.forces.drop(labels=index, inplace=True)
-
-        if self.save_matrix:
-            self.global_stiffness_matrix_reduced.to_csv(self.out_dir / "stiffness_matrix_reduced.csv")
-            self.forces.to_csv(self.out_dir / "force_array_reduced.csv")
 
     def compute_displacements(self):
         """
