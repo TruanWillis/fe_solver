@@ -312,16 +312,20 @@ if __name__ == "__main__":
     __main__ used for development purposes.
     """
 
-    test_no = 3
+    test_no = 1
+    create_fixture = True
 
-    wk_dir = Path(__file__).resolve().parent.parent
-    input_file = load_input(wk_dir / "tests" / "test_data" / f"test_input_{test_no}.inp")
+    wk_dir = Path(__file__).resolve().parent.parent.parent
+    fixtures_dir = wk_dir / "tests" / "fixtures"
+
+    input_file = load_input(fixtures_dir / f"test_input_{test_no}.inp")
     model = call_gen_function(input_file)
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(model)
 
-    # with open(wk_dir / "tests" / "test_data" / f"test_model_{test_no}.json", "w") as outfile:
-    #    json.dump(model, outfile, separators=(',', ':'))
-    #
-    # with open(wk_dir / "tests" / "test_data" / f"test_model_{test_no}.pickle", "wb") as outfile:
-    #    pickle.dump(model, outfile)
+    if create_fixture:
+        with open(fixtures_dir / f"test_model_{test_no}.json", "w") as outfile:
+           json.dump(model, outfile, separators=(',', ':'))
+
+        with open(fixtures_dir / f"test_model_{test_no}.pickle", "wb") as outfile:
+           pickle.dump(model, outfile)
