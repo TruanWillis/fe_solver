@@ -376,22 +376,7 @@ def forward_elimination_new(self):
 
 After forward elimination, the system looks like:
 
-$$\begin{bmatrix}
-K_{11} & K_{12} & K_{13} \\\\
-0 & K'_{22} & K'_{23} \\\\
-0 & 0 & K''_{33}
-\end{bmatrix}
-\begin{Bmatrix}
-u_1 \\\\
-u_2 \\\\
-u_3
-\end{Bmatrix}
-=
-\begin{Bmatrix}
-F_1 \\\\
-F'_2 \\\\
-F''_3
-\end{Bmatrix}$$
+$$\begin{bmatrix} K_{11} & K_{12} & K_{13} \\ 0 & K'_{22} & K'_{23} \\ 0 & 0 & K''_{33} \end{bmatrix} \begin{Bmatrix} u_1 \\ u_2 \\ u_3 \end{Bmatrix} = \begin{Bmatrix} F_1 \\ F'_2 \\ F''_3 \end{Bmatrix}$$
 
 Note the `TODO` comment in the code — a **partial pivot** (swapping rows to place the
 largest value on the diagonal before each elimination step) would improve numerical
