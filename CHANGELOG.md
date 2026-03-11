@@ -11,6 +11,7 @@
  - Code structure updated
  - pyproject added
  - unitest replaced with pytest
+ - README.md updated
 
 ### Fixed
  - General typos
