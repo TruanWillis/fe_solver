@@ -5,10 +5,11 @@ import pprint
 import numpy as np
 import pandas as pd
 from tabulate import tabulate
+from pathlib import Path
 
-import core.direct_solver as direct_solver
-import core.elements as elements
-import core.model as model
+from fe_solver.core import direct_solver
+from fe_solver.core import elements
+from fe_solver.core import model
 
 # import matplotlib.pyplot as plt
 
@@ -16,7 +17,6 @@ import core.model as model
 class solver:
     def __init__(self, model, fe_solver, print_head, save_matrix, out_dir):
         """
-        Initiates solver class object.
 
         Args:
             model (dict): Model defined using keywords.
@@ -29,9 +29,12 @@ class solver:
         self.model = model
         self.fe_solver = fe_solver
 
+        # Assumes model is loaded with a force by default
         self.homogeneous_model = True
         self.save_matrix = save_matrix
-        self.out_dir = out_dir
+        self.out_dir = out_dir / "outputs"
+        if self.save_matrix:
+            Path(self.out_dir).mkdir(parents=True, exist_ok=True)
 
         node_count = len(self.model["nodes"].keys())
         self.dof = node_count * 2
@@ -67,6 +70,8 @@ class solver:
         Updates displacements dataSeries with known nodal displacements.
         """
 
+        print(f"Defining boundary conditions")
+
         for boundary in self.model["boundary"]:
             if isinstance(boundary, str):
                 node_list = self.model["nodesets"][boundary]
@@ -80,15 +85,18 @@ class solver:
                             str(n) + disp, self.model["boundary"][boundary][axis]
                         )
 
-        # if self.save_matrix:
-        #     self.displacements.to_csv(self.out_dir + "/displacements_matrix.csv")
+        if self.save_matrix:
+            self.displacements.to_csv(self.out_dir / "displacements_matrix.csv")
 
     def define_load(self):
         """
         Updates forces dataSeries with known applied forces.
         """
 
+        print(f"Defining loads")
+        
         if bool(self.model["load"]) is False:
+            # Model is displacement driven
             self.homogeneous_model = False
         else:
             for load in self.model["load"]:
@@ -108,6 +116,8 @@ class solver:
         """
         Defines element stiffness matrix for all model elements.
         """
+
+        print(f"Generating element stiffness matricies")
 
         for element in self.model["elements"]:
             element_type = self.model["elements"][element]["type"]
@@ -135,42 +145,47 @@ class solver:
         Defines global stiffness matrix based on element stiffness matrices.
         """
 
-        self.global_stiffness_matrix = pd.DataFrame(
-            np.zeros((self.dof, self.dof)),
-            columns=self.node_headings,
-            index=self.node_headings,
-        )
+        print(f"Generating global stiffness matrix")
 
-        if self.save_matrix:
-            self.global_stiffness_matrix_save = self.global_stiffness_matrix.copy()
+        try:
+            self.global_stiffness_matrix = pd.DataFrame(
+                np.zeros((self.dof, self.dof)),
+                columns=self.node_headings,
+                index=self.node_headings,
+            )
 
-        for e in self.model["elements"]:
-            element_stiffness_matrix = self.model["elements"][e][
-                "K"
-            ].element_stiffness_matrix
+            if self.save_matrix:
+                self.global_stiffness_matrix_save = self.global_stiffness_matrix.copy()
 
-            for column in element_stiffness_matrix:
-                for index, row in element_stiffness_matrix.iterrows():
-                    value = self.global_stiffness_matrix._get_value(
-                        index, column
-                    ) + element_stiffness_matrix._get_value(index, column)
-                    self.global_stiffness_matrix._set_value(index, column, value)
+            for e in self.model["elements"]:
+                element_stiffness_matrix = self.model["elements"][e][
+                    "K"
+                ].element_stiffness_matrix
 
-                    if self.save_matrix:
-                        ident = self.global_stiffness_matrix_save._get_value(
+                for column in element_stiffness_matrix:
+                    for index, row in element_stiffness_matrix.iterrows():
+                        value = self.global_stiffness_matrix._get_value(
                             index, column
-                        )
-                        if ident == 0:
-                            ident = "e" + str(e)
-                        else:
-                            ident = ident + ", e" + str(e)
-                        self.global_stiffness_matrix_save._set_value(
-                            index, column, ident
-                        )
+                        ) + element_stiffness_matrix._get_value(index, column)
+                        self.global_stiffness_matrix._set_value(index, column, value)
+
+                        if self.save_matrix:
+                            ident = self.global_stiffness_matrix_save._get_value(
+                                index, column
+                            )
+                            if ident == 0:
+                                ident = "e" + str(e)
+                            else:
+                                ident = ident + ", e" + str(e)
+                            self.global_stiffness_matrix_save._set_value(
+                                index, column, ident
+                            )
+        except Exception as e:
+            print(e)
 
         if self.save_matrix:
             self.global_stiffness_matrix_save.to_csv(
-                self.out_dir + "/stiffness_matrix.csv"
+                self.out_dir / "stiffness_matrix.csv"
             )
 
     def reduce_matrix(self):
@@ -179,31 +194,22 @@ class solver:
         constrained boundary condition is defined.
         """
 
-        self.global_stiffness_matrix_reduced = self.global_stiffness_matrix.copy()
-        displacements_temp = self.displacements.copy()
+        print(f"Reducing global stiffness matix")
 
-        for index, u in self.displacements.items():
-            if u == 0:
-                self.global_stiffness_matrix_reduced.drop(
-                    index=index, columns=index, inplace=True
-                )
-                self.forces.drop(labels=index, inplace=True)
-                displacements_temp.drop(labels=index, inplace=True)
-            else:
-                if u == "*":
-                    displacements_temp._set_value(index, 0.0)
-                else:
-                    displacements_temp._set_value(index, u)
+        global_stiffness_matrix = self.global_stiffness_matrix.to_numpy()
+        displacements = self.displacements.to_numpy()
+        mask = self.model["active_mask"]
 
         if not self.homogeneous_model:
-            self.forces = self.global_stiffness_matrix_reduced.dot(displacements_temp)
+            displacements[displacements == "*"] = 0.0
+            forces = np.dot(global_stiffness_matrix, displacements)
+        else:
+            forces = self.forces.to_numpy()
 
-            for index, u in displacements_temp.items():
-                if u != 0:
-                    self.global_stiffness_matrix_reduced.drop(
-                        index=index, columns=index, inplace=True
-                    )
-                    self.forces.drop(labels=index, inplace=True)
+        self.global_stiffness_matrix_reduced = global_stiffness_matrix[np.ix_(mask, mask)]
+        forces_reduced = forces[mask]
+        self.forces = forces_reduced
+        self.index_reduced = np.array(self.node_headings)[mask]
 
     def compute_displacements(self):
         """
@@ -211,20 +217,25 @@ class solver:
         and applied forces.
         """
 
+        print(f"Computing displacements")
+
         if self.fe_solver:
-            displacements = direct_solver.gaussianElimination(
+            displacement_solution = direct_solver.gaussianElimination(
                 self.global_stiffness_matrix_reduced, self.forces
             ).displacements
 
         else:
-            global_stiffness_matrix = self.global_stiffness_matrix_reduced.to_numpy()
-            forces = self.forces.to_numpy()
+            # global_stiffness_matrix = self.global_stiffness_matrix_reduced.to_numpy()
+            # forces = self.forces.to_numpy()
+            global_stiffness_matrix = self.global_stiffness_matrix_reduced
+            forces = self.forces
 
             global_stiffness_matrix = global_stiffness_matrix.astype("float64")
             forces = forces.astype("float64")
 
             displacement_solution = np.linalg.solve(global_stiffness_matrix, forces)
-            displacements = pd.Series(displacement_solution, index=self.forces.index)
+            
+        displacements = pd.Series(displacement_solution, index=self.index_reduced)
 
         if self.homogeneous_model:
             homogeneous_correction = 1
@@ -238,6 +249,8 @@ class solver:
         """
         Calculates element in-plane stresses.
         """
+
+        print(f"Computing normal stress")
 
         elements = self.model["elements"].keys()
         self.stress_normal = pd.DataFrame(
@@ -268,6 +281,8 @@ class solver:
         Calculates element principal stresses.
         """
 
+        print(f"Computing principal stress")
+
         self.stress_principal = pd.DataFrame(
             index=self.element_index,
             columns=["s_max", "s_min", "s_shear", "a", "opp", "adj"],
@@ -297,6 +312,8 @@ class solver:
         """
         Calculates element von Mises stress
         """
+
+        print(f"Computing von Mises stress")
 
         self.stress_mises = pd.DataFrame(index=self.element_index, columns=["s_mises"])
 
@@ -350,12 +367,14 @@ if __name__ == "__main__":
     __main__ for development purposes.
     """
 
-    wk_dir = os.path.dirname(os.path.realpath(__file__))
-    pp = pprint.PrettyPrinter(indent=4)
-    input = model.load_input(wk_dir + "/test_data/test_input_1.inp")
-    model = model.call_gen_function(input)
-    s = solver(model, False, True, True, wk_dir + "/")
+    test_model = "test_input_1"
 
+    wk_dir = Path(__file__).resolve().parent.parent
+    input = model.load_input(wk_dir / "tests" / "test_data" / f"{test_model}.inp")
+    model = model.call_gen_function(input)
+    s = solver(model, False, True, True, wk_dir)
+
+    pp = pprint.PrettyPrinter(indent=4)
     # pp.pprint(s.__dict__.keys())
     pp.pprint(s.displacements)
     pp.pprint(s.forces)

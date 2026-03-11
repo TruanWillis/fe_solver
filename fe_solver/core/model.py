@@ -1,8 +1,9 @@
-# import json
+import json
 import os
+import numpy as np
 import pprint
-
-# import pickle
+import pickle
+from pathlib import Path
 
 
 keywords = {
@@ -79,8 +80,11 @@ class generateModel:
             self.model["nodes"][int(split_line[0])] = [
                 float(split_line[1]),
                 float(split_line[2]),
+                # TODO: Update to 3D when ready
+                # float(split_line[3]),
             ]
         self.model["node count"] = int(len(self.model["nodes"].keys()))
+        # TODO: Update to 3D when ready
         self.model["dof"] = int(len(self.model["nodes"].keys()) * 2)
 
     def gen_node_set(self, input):
@@ -151,7 +155,7 @@ class generateModel:
                 self.model["section"]["elementset"] = item.split("=")[1]
             elif "material" in item.lower():
                 self.model["section"]["material"] = item.split("=")[1]
-        thickness = self.strip_input(input[1].split(","))[0]
+        thickness = float(self.strip_input(input[1].split(","))[0])
         self.model["section"]["thickness"] = thickness
 
     def gen_material(self, input):
@@ -221,6 +225,44 @@ class generateModel:
             if int(values[1]) < 3:
                 self.model["load"][node][values[1]] = float(values[2])
 
+    def gen_solver_maps(self):
+        label_to_idx = {}
+        #TODO:Update to 3D when ready
+        dof_suffixes = ['u', 'v'] 
+        # dof_suffixes = ['u', 'v', 'w'] 
+        
+        count = 0
+        for node_id in sorted(self.model['nodes'].keys()):
+            for suffix in dof_suffixes:
+                label = f"{node_id}{suffix}"
+                label_to_idx[label] = count
+                count += 1
+                
+        active_mask = np.ones(self.model['dof'], dtype=bool)
+
+        for key, constraints in self.model['boundary'].items():
+            if key in self.model['nodesets']:
+                node_list = self.model['nodesets'][key]
+            else:
+                try:
+                    node_list = [int(key)]
+                except ValueError:
+                    print(f"Warning: Boundary key '{key}' not found in sets or nodes.")
+                    continue
+            
+            for node_id in node_list:
+                for dof_key, value in constraints.items():
+                    dof_idx = int(dof_key) - 1 
+                    suffix = dof_suffixes[dof_idx]
+                    label = f"{node_id}{suffix}"
+                    
+                    if label in label_to_idx:
+                        idx = label_to_idx[label]
+                        active_mask[idx] = False
+
+        self.model["label_to_idx"] = label_to_idx
+        self.model["active_mask"] = active_mask.tolist()
+
 
 def call_gen_function(inp_file):
     """
@@ -245,6 +287,7 @@ def call_gen_function(inp_file):
                     line_count_temp += 1
                 function = getattr(model, keywords[keyword])
                 function(keyword_inputs)
+    model.gen_solver_maps()
     return model.model
 
 
@@ -269,14 +312,20 @@ if __name__ == "__main__":
     __main__ used for development purposes.
     """
 
-    wk_dir = os.path.dirname(os.path.realpath(__file__))
-    input_file = load_input(wk_dir + "/test_data/test_input_3.inp")
+    test_no = 1
+    create_fixture = True
+
+    wk_dir = Path(__file__).resolve().parent.parent.parent
+    fixtures_dir = wk_dir / "tests" / "fixtures"
+
+    input_file = load_input(fixtures_dir / f"test_input_{test_no}.inp")
     model = call_gen_function(input_file)
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(model)
 
-    # with open(wk_dir + "/test_data/test_model_1.json", "w") as outfile:
-    #    json.dump(model, outfile, separators=(',', ':'))
+    if create_fixture:
+        with open(fixtures_dir / f"test_model_{test_no}.json", "w") as outfile:
+           json.dump(model, outfile, separators=(',', ':'))
 
-    # with open(wk_dir + "/test_data/test_model_3.pickle", "wb") as outfile:
-    #    pickle.dump(model, outfile)
+        with open(fixtures_dir / f"test_model_{test_no}.pickle", "wb") as outfile:
+           pickle.dump(model, outfile)

@@ -2,34 +2,37 @@ import os
 import timeit
 import tkinter as tk
 from tkinter import filedialog
+from pathlib import Path
 
-import core.model as model
-import core.solver as solver
-import gui.plot as plot
+from fe_solver.core import model
+from fe_solver.core import solver
+from fe_solver.gui import plot
 
 # from tkinter.messagebox import showinfo
 
+ASSETS = Path(__file__).parent.parent / "assets"
 
 class gui:
-    def __init__(self, root, config):
+    def __init__(self, root, app_config, user_config):
         """
         Initiates gui class object.
 
         Args:
             root (object): TKinter tk class object.
-            config (dict): User configurable values.
+            app_config (dict): fe_solver configurable values.
+            user_config (dict): User configurable values.
         """
 
-        self.window_name = config["name"] + " " + config["version"]
-        self.scale = config["scale"]
-        self.print_head = config["print_head"]
-        self.save_matrix = config["save_matrix"]
-        self.fe_solver = config["fe_solver"]
+        self.window_name = app_config["name"] + " " + app_config["version"]
+        self.scale = user_config["scale"]
+        self.print_head = user_config["print_head"]
+        self.save_matrix = user_config["save_matrix"]
+        self.fe_solver = user_config["fe_solver"]
 
         root.title(self.window_name)
         root.geometry("450x600")
         icon = tk.PhotoImage(
-            file=os.path.dirname(os.path.realpath(__file__)) + "/media/icon.png"
+            file=ASSETS / "icons" / "icon.png"
         )
         root.iconphoto(True, icon)
 
@@ -64,7 +67,7 @@ class gui:
         quit_button.pack(fill="both", expand=True)
         self.log.pack(fill="both", expand=True)
 
-        self.writeToLog(config["disclaimer"] + "\n")
+        self.writeToLog(app_config["disclaimer"] + "\n")
 
     def writeToLog(self, msg):
         """
@@ -88,7 +91,8 @@ class gui:
         Button function to select working directory.
         """
 
-        self.dir_name = filedialog.askdirectory(title="Select working directory")
+        dir_name = filedialog.askdirectory(title="Select working directory")
+        self.dir_name = Path(dir_name)
 
         """
         showinfo(
@@ -96,10 +100,14 @@ class gui:
             message=self.dir_name
         )
         """
+        if len(str(self.dir_name)) > 25:
+            display_path = f"...{str(self.dir_name)[-25:]}" 
+        else:
+            display_path = str(self.dir_name)
 
-        self.dir_name_text.set("..." + self.dir_name[-25:])
+        self.dir_name_text.set(display_path)
         self.writeToLog("Working directory selected...")
-        self.writeToLog(self.dir_name + "\n")
+        self.writeToLog(f"{self.dir_name}\n")
 
     def select_inp(self):
         """
@@ -137,7 +145,7 @@ class gui:
         model_start = timeit.default_timer()
         self.writeToLog("Generating model " + self.inp_name + "...")
         try:
-            input = model.load_input(self.dir_name + "/" + self.inp_name)
+            input = model.load_input(self.dir_name / self.inp_name)
             self.model = model.call_gen_function(input)
             self.writeToLog("Nodes: " + str(self.model["node count"]))
             self.writeToLog("Elements: " + str(self.model["element count"]))
@@ -197,16 +205,17 @@ class gui:
             self.writeToLog(str(e))
 
 
-def run(config):
+def run(app_config, user_config):
     """
     Runs gui.
 
     Args:
+        app_config (dict): fe_solver configurable values.
         config (dict): User configurable values.
     """
 
     root = tk.Tk()
-    gui(root, config)
+    gui(root, app_config, user_config)
     root.mainloop()
 
 
