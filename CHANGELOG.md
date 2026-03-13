@@ -1,5 +1,20 @@
 # ChangeLog
 
+## [0.2.1] - 14-03-2026
+### Added
+ - stdout replaced with custom function to enable print statements to be passed to gui
+ - Solver run as thread to enable live logging of print statements
+ - Traceback added to gui to provide detailed exception info
+ - Scollbar added to gui log
+
+### Changed
+ - Log print statements updated
+ - File paths handled by pathlib
+ - Unused code removed
+
+### Fixed
+ NA
+___
 ## [0.2.0] - 11-03-2026
 ### Added
  - keywords.md and theory.md add to docs/
@@ -15,7 +30,7 @@
 
 ### Fixed
  - General typos
-
+___
 ## [0.1.0] - 03-10-2024
 ### Added
  - Option for direct solver, direct_solver.py
@@ -25,7 +40,7 @@
 
 ### Fixed
  NA
-
+___
 ## [0.0.1] - 07-03-2023 
 ### Added
  - First release
