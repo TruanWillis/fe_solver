@@ -90,7 +90,7 @@ class FESolverApp:
         quit_button.pack(fill="both", expand=True)
         self.log.pack(fill="both", expand=True)
 
-        self.writeToLog(app_config["disclaimer"] + "\n")
+        self.writeToLog(f"{app_config['disclaimer']}\n")
 
     def writeToLog(self, msg):
         """
@@ -138,14 +138,14 @@ class FESolverApp:
             ("all files", "*.*"),
         )
 
-        self.inp_name = filedialog.askopenfilename(
+        inp_name = filedialog.askopenfilename(
             title="Select input file", initialdir=self.dir_name, filetypes=filetypes
         )
 
-        self.inp_path = Path(self.inp_name)
+        self.inp_path = Path(inp_name)
         self.inp_name_text.set(self.inp_path.name)
         self.writeToLog("Input file selected...")
-        self.writeToLog(self.inp_path.name + "\n")
+        self.writeToLog(f"{self.inp_path.name}\n")
         self.model_button.config(state="normal")
 
     def model_generate(self):
@@ -154,19 +154,23 @@ class FESolverApp:
         """
 
         model_start = timeit.default_timer()
-        self.writeToLog("Generating model " + self.inp_name + "...")
+        self.writeToLog(f"Generating model {self.inp_path.name}...")
         try:
             inp_lines = model.load_input(self.inp_path)
             self.model = model.call_gen_function(inp_lines)
-            self.writeToLog("Nodes: " + str(self.model["node count"]))
-            self.writeToLog("Elements: " + str(self.model["element count"]))
-            self.writeToLog("DOF: " + str(self.model["dof"]))
+            self.writeToLog(f"Nodes: {self.model['node count']}")
+            self.writeToLog(f"Elements: {self.model['element count']}")
+            self.writeToLog(f"DOF: {self.model['dof']}")
             model_end = timeit.default_timer()
             duration = model_end - model_start
-            self.writeToLog("...complete [{:.3f}s]".format(duration) + "\n")
+            self.writeToLog(f"...complete [{duration:.3f}s]\n")
             self.solve_button.config(state="normal")
         except Exception as e:
-            self.writeToLog(str(e))
+            e_filename, e_line, e_function = traceback_info(e)
+            self.writeToLog(f"\nError generating model: {str(e)}")
+            self.writeToLog(f"File: {e_filename}")
+            self.writeToLog(f"Line: {e_line}")
+            self.writeToLog(f"Function: {e_function}")
 
     def model_solve(self):
         """
@@ -178,7 +182,7 @@ class FESolverApp:
 
         self.solver_start = timeit.default_timer()
         self.solver_running = True
-        self.writeToLog("Solving model " + self.inp_name + "...")
+        self.writeToLog(f"Solving model {self.inp_path.name}...")
         
         self.root.after(100, self.poll_log_queue)
 
@@ -211,8 +215,11 @@ class FESolverApp:
             self.log_queue.put(f"...complete [{duration:.3f}s]\n")
             self.plot_button.config(state="normal")
         except Exception as e:
-            line_number = traceback_line(e)
-            self.log_queue.put(f"Error at line {line_number}: {str(e)}")
+            e_filename, e_line, e_function = traceback_info(e)
+            self.log_queue.put(f"\nError solving model: {str(e)}")
+            self.log_queue.put(f"File: {e_filename}")
+            self.log_queue.put(f"Line: {e_line}")
+            self.log_queue.put(f"Line: {e_function}")
         finally:
             sys.stdout = original_stdout
             self.solver_running = False
@@ -224,14 +231,18 @@ class FESolverApp:
         Button function to plot solver results.
         """
 
-        self.writeToLog("Plotting results " + self.inp_name + ", close to continue...")
+        self.writeToLog(f"Plotting results {self.inp_path.name}, close to continue...")
         try:
             plot.plot_results(
                 self.model, self.s, self.scale, self.window_name, self.save_matrix
             )
-            self.writeToLog("...closed" + "\n")
+            self.writeToLog(f"...closed\n")
         except Exception as e:
-            self.writeToLog(str(e))
+            e_filename, e_line, e_function = traceback_info(e)
+            self.writeToLog(f"\nError ploting result: {str(e)}")
+            self.writeToLog(f"File: {e_filename}")
+            self.writeToLog(f"Line: {e_line}")
+            self.writeToLog(f"Line: {e_function}")
 
     def poll_log_queue(self):
         """
@@ -249,9 +260,11 @@ class FESolverApp:
             self.root.after(100, self.poll_log_queue)
 
 
-def traceback_line(e):
+def traceback_info(e):
     tb = e.__traceback__
-    return traceback.extract_tb(tb)[-1].lineno
+    frame = traceback.extract_tb(tb)[-1]
+    file_path = Path(frame.filename)
+    return file_path.name, frame.lineno, frame.name
 
 
 def run(app_config, user_config):
