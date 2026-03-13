@@ -79,7 +79,14 @@ class FESolverApp:
         self.solve_button = tk.Button(frame, text="Solve model", command=self.model_solve, state="disabled")
         self.plot_button = tk.Button(frame, text="Plot results", command=self.plot_results, state="disabled")
         quit_button = tk.Button(frame, text="Quit", command=root.destroy)
-        self.log = tk.Text(frame, state="disabled", height="200", wrap="char")
+
+        log_frame = tk.Frame(frame)
+        self.log = tk.Text(log_frame, state="disabled", wrap="word")
+        scrollbar = tk.Scrollbar(log_frame, command=self.log.yview)
+        self.log.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
+        self.log.pack(side="left", fill="both", expand=True)
+        log_frame.pack(fill="both", expand=True)
 
         frame.pack(fill="both", expand=True)
         dir_button.pack(fill="both", expand=True)
@@ -100,14 +107,15 @@ class FESolverApp:
             msg (string): Text to display.
         """
 
-        numlines = int(self.log.index("end - 1 line").split(".")[0])
+        # numlines = int(self.log.index("end - 1 line").split(".")[0])
         self.log["state"] = "normal"
-        if numlines == 24:
-            self.log.delete(1.0, 2.0)
+        # if numlines == 24:
+        #     self.log.delete(1.0, 2.0)
         if self.log.index("end-1c") != "1.0":
             self.log.insert("end", "\n")
         self.log.insert("end", msg)
         self.log["state"] = "disabled"
+        self.log.see("end")
 
     def select_dir(self):
         """
@@ -147,6 +155,8 @@ class FESolverApp:
         self.writeToLog("Input file selected...")
         self.writeToLog(f"{self.inp_path.name}\n")
         self.model_button.config(state="normal")
+        self.solve_button.config(state="disabled")
+        self.plot_button.config(state="disabled")
 
     def model_generate(self):
         """
@@ -165,6 +175,7 @@ class FESolverApp:
             duration = model_end - model_start
             self.writeToLog(f"...complete [{duration:.3f}s]\n")
             self.solve_button.config(state="normal")
+            self.plot_button.config(state="disabled")
         except Exception as e:
             e_filename, e_line, e_function = traceback_info(e)
             self.writeToLog(f"\nError generating model: {str(e)}")
