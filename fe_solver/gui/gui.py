@@ -12,7 +12,6 @@ from fe_solver.core import model
 from fe_solver.core import solver
 from fe_solver.gui import plot
 
-# from tkinter.messagebox import showinfo
 
 ASSETS = Path(__file__).parent.parent / "assets"
 
@@ -33,7 +32,7 @@ class StdoutRedirector:
         pass
 
 
-class gui:
+class FESolverApp:
     def __init__(self, root, app_config, user_config):
         """
         Initiates gui class object.
@@ -118,12 +117,6 @@ class gui:
         dir_name = filedialog.askdirectory(title="Select working directory")
         self.dir_name = Path(dir_name)
 
-        """
-        showinfo(
-            title="Selected directory",
-            message=self.dir_name
-        )
-        """
         if len(str(self.dir_name)) > 25:
             display_path = f"...{str(self.dir_name)[-25:]}" 
         else:
@@ -149,14 +142,6 @@ class gui:
         )
 
         self.inp_name = os.path.basename(self.inp_name)
-
-        """
-        showinfo(
-            title='Selected File',
-            message=self.inp_name
-            )
-        """
-
         self.inp_name_text.set(self.inp_name)
         self.writeToLog("Input file selected...")
         self.writeToLog(self.inp_name + "\n")
@@ -275,7 +260,7 @@ def run(app_config, user_config):
     """
 
     root = tk.Tk()
-    gui(root, app_config, user_config)
+    FESolverApp(root, app_config, user_config)
     root.mainloop()
 
 
