@@ -1,4 +1,5 @@
 import os
+import sys
 import timeit
 import tkinter as tk
 from tkinter import filedialog
@@ -11,6 +12,23 @@ from fe_solver.gui import plot
 # from tkinter.messagebox import showinfo
 
 ASSETS = Path(__file__).parent.parent / "assets"
+
+
+class StdoutRedirector:
+    """
+    Redirects stdout writes to the GUI log window.
+    """
+    
+    def __init__(self, write_func):
+        self.write_func = write_func
+    
+    def write(self, message):
+        if message.strip():
+            self.write_func(message.strip())
+    
+    def flush(self):
+        pass
+
 
 class gui:
     def __init__(self, root, app_config, user_config):
@@ -176,6 +194,10 @@ class gui:
             self.writeToLog("Direct solver: fe_solver")
         else:
             self.writeToLog("Direct solver: numpy")
+        
+        original_stdout = sys.stdout
+        sys.stdout = StdoutRedirector(self.writeToLog)
+
         try:
             self.s = solver.solver(
                 self.model,
@@ -189,6 +211,8 @@ class gui:
             self.writeToLog("...complete [{:.3f}s]".format(duration) + "\n")
         except Exception as e:
             self.writeToLog(str(e))
+        finally:
+            sys.stdout = original_stdout
 
     def plot_results(self):
         """
