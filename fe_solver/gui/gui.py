@@ -1,4 +1,3 @@
-import os
 import queue
 import sys
 import threading
@@ -107,10 +106,7 @@ class FESolverApp:
             msg (string): Text to display.
         """
 
-        # numlines = int(self.log.index("end - 1 line").split(".")[0])
         self.log["state"] = "normal"
-        # if numlines == 24:
-        #     self.log.delete(1.0, 2.0)
         if self.log.index("end-1c") != "1.0":
             self.log.insert("end", "\n")
         self.log.insert("end", msg)
