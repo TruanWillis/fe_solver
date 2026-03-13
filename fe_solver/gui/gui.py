@@ -70,21 +70,21 @@ class FESolverApp:
         dir_button = tk.Button(
             frame, textvariable=self.dir_name_text, command=self.select_dir
         )
-        inp_button = tk.Button(
-            frame, textvariable=self.inp_name_text, command=self.select_inp
+        self.inp_button = tk.Button(
+            frame, textvariable=self.inp_name_text, command=self.select_inp, state="disabled"
         )
-        model_button = tk.Button(
-            frame, text="Generate model", command=self.model_generate
+        self.model_button = tk.Button(
+            frame, text="Generate model", command=self.model_generate, state="disabled"
         )
-        self.solve_button = tk.Button(frame, text="Solve model", command=self.model_solve)
-        self.plot_button = tk.Button(frame, text="Plot results", command=self.plot_results)
+        self.solve_button = tk.Button(frame, text="Solve model", command=self.model_solve, state="disabled")
+        self.plot_button = tk.Button(frame, text="Plot results", command=self.plot_results, state="disabled")
         quit_button = tk.Button(frame, text="Quit", command=root.destroy)
         self.log = tk.Text(frame, state="disabled", height="200", wrap="char")
 
         frame.pack(fill="both", expand=True)
         dir_button.pack(fill="both", expand=True)
-        inp_button.pack(fill="both", expand=True)
-        model_button.pack(fill="both", expand=True)
+        self.inp_button.pack(fill="both", expand=True)
+        self.model_button.pack(fill="both", expand=True)
         self.solve_button.pack(fill="both", expand=True)
         self.plot_button.pack(fill="both", expand=True)
         quit_button.pack(fill="both", expand=True)
@@ -125,6 +125,7 @@ class FESolverApp:
         self.dir_name_text.set(display_path)
         self.writeToLog("Working directory selected...")
         self.writeToLog(f"{self.dir_name}\n")
+        self.inp_button.config(state="normal")
 
     def select_inp(self):
         """
@@ -141,10 +142,11 @@ class FESolverApp:
             title="Select input file", initialdir=self.dir_name, filetypes=filetypes
         )
 
-        self.inp_name = os.path.basename(self.inp_name)
-        self.inp_name_text.set(self.inp_name)
+        self.inp_path = Path(self.inp_name)
+        self.inp_name_text.set(self.inp_path.name)
         self.writeToLog("Input file selected...")
-        self.writeToLog(self.inp_name + "\n")
+        self.writeToLog(self.inp_path.name + "\n")
+        self.model_button.config(state="normal")
 
     def model_generate(self):
         """
@@ -154,14 +156,15 @@ class FESolverApp:
         model_start = timeit.default_timer()
         self.writeToLog("Generating model " + self.inp_name + "...")
         try:
-            input = model.load_input(self.dir_name / self.inp_name)
-            self.model = model.call_gen_function(input)
+            inp_lines = model.load_input(self.inp_path)
+            self.model = model.call_gen_function(inp_lines)
             self.writeToLog("Nodes: " + str(self.model["node count"]))
             self.writeToLog("Elements: " + str(self.model["element count"]))
             self.writeToLog("DOF: " + str(self.model["dof"]))
             model_end = timeit.default_timer()
             duration = model_end - model_start
             self.writeToLog("...complete [{:.3f}s]".format(duration) + "\n")
+            self.solve_button.config(state="normal")
         except Exception as e:
             self.writeToLog(str(e))
 
@@ -206,6 +209,7 @@ class FESolverApp:
             self.solver_end = timeit.default_timer()
             duration = self.solver_end - self.solver_start
             self.log_queue.put(f"...complete [{duration:.3f}s]\n")
+            self.plot_button.config(state="normal")
         except Exception as e:
             line_number = traceback_line(e)
             self.log_queue.put(f"Error at line {line_number}: {str(e)}")
