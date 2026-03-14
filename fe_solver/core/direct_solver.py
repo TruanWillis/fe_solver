@@ -18,12 +18,6 @@ class gaussianElimination:
         self.forward_elimination()
         self.back_subtract()
 
-        # for column in range(0, len(stiffness)):
-        #     self.stiffness, self.force = self.forward_elimination(
-        #         self.stiffness, self.force, column
-        #     )
-        # self.displacements = self.back_subtract(self.stiffness, self.force)
-
     def forward_elimination(self):
         for i in range(len(self.force)):
             # TODO: add partial pivot to avoid zero pivot failure
