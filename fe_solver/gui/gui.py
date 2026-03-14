@@ -200,11 +200,6 @@ class FESolverApp:
         """
         Calls solver function.
         """
-
-        if self.fe_solver:
-            self.writeToLog("Direct solver: fe_solver")
-        else:
-            self.writeToLog("Direct solver: numpy")
         
         original_stdout = sys.stdout
         sys.stdout = StdoutRedirector(self.log_queue)

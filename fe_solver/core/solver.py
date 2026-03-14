@@ -26,6 +26,11 @@ class Solver:
         self.model = model
         self.fe_solver = fe_solver
 
+        if self.fe_solver:
+            print("Direct solver: FEsolver")
+        else:
+            print("Direct solver: Numpy")
+
         # Assumes model is loaded with a force by default
         self.homogeneous_model = True
         self.save_matrix = save_matrix
@@ -55,7 +60,7 @@ class Solver:
         Updates displacements dataSeries with known nodal displacements.
         """
 
-        print("Defining boundary conditions")
+        # print("Defining boundary conditions")
 
         for boundary in self.model["boundary"]:
             if isinstance(boundary, str):
@@ -78,7 +83,7 @@ class Solver:
         Updates forces dataSeries with known applied forces.
         """
 
-        print("Defining loads")
+        # print("Defining loads")
 
         if bool(self.model["load"]) is False:
             # Model is displacement driven
@@ -168,10 +173,14 @@ class Solver:
         except Exception as e:
             print(e)
 
+        print(f"Global stiffness matrix: {self.dof}x{self.dof}")
+
         if self.save_matrix:
             self.global_stiffness_matrix_save.to_csv(
                 self.out_dir / "stiffness_matrix.csv"
             )
+            print("Saved to output: stiffness_matrix.csv")
+            print("Saved to output: displacement_matrix.csv")
 
     def reduce_matrix(self):
         """
@@ -198,6 +207,8 @@ class Solver:
         self.forces = forces_reduced
         self.index_reduced = np.array(self.node_headings)[mask]
 
+        print(f"System reduced from {self.dof} to {len(self.forces)} free DOFs")
+
     def compute_displacements(self):
         """
         Calculates nodal displacements as a function of global stiffness matrix
@@ -205,6 +216,7 @@ class Solver:
         """
 
         print("Computing displacements")
+
         global_stiffness_matrix = self.global_stiffness_matrix_reduced
         forces = self.forces
 
@@ -220,14 +232,19 @@ class Solver:
             displacement_solution = np.linalg.solve(global_stiffness_matrix, forces)
 
         displacements = pd.Series(displacement_solution, index=self.index_reduced)
+        displacements_corrected = self.apply_sign_correction(displacements)
+
+        for index, displacement in displacements_corrected.items():
+            self.displacements._set_value(index, displacement)
+    
+    def apply_sign_correction(self, displacements):
+        """
+        Reverse displacement sign for displacement driven models (non-homogeneous).
+        """
 
         if self.homogeneous_model:
-            homogeneous_correction = 1
-        else:
-            homogeneous_correction = -1
-
-        for index, displacement in displacements.items():
-            self.displacements._set_value(index, displacement * homogeneous_correction)
+            return displacements
+        return displacements * -1
 
     def compute_normal_stress(self):
         """
@@ -317,7 +334,7 @@ class Solver:
         terminal.
         """
 
-        print(f"\n In-plane stress...")
+        print("In-plane stress...")
         print(
             tabulate(
                 self.stress_normal.head(),
@@ -326,7 +343,7 @@ class Solver:
                 headers=self.stress_normal.columns,
             )
         )
-        print(f"\n Principal stress...")
+        print("Principal stress...")
         print(
             tabulate(
                 self.stress_principal.iloc[:,:3].head(),
@@ -335,7 +352,7 @@ class Solver:
                 headers=self.stress_principal.columns[:3],
             )
         )
-        print(f"\n Mises stress...")
+        print("Mises stress...")
         print(
             tabulate(
                 self.stress_mises.head(),
