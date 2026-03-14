@@ -15,8 +15,8 @@ class gaussianElimination:
         self.stiffness = stiffness
         self.force = force
         
-        self.forward_elimination_new()
-        self.back_subtract_new()
+        self.forward_elimination()
+        self.back_subtract()
 
         # for column in range(0, len(stiffness)):
         #     self.stiffness, self.force = self.forward_elimination(
@@ -24,7 +24,7 @@ class gaussianElimination:
         #     )
         # self.displacements = self.back_subtract(self.stiffness, self.force)
 
-    def forward_elimination_new(self):
+    def forward_elimination(self):
         for i in range(len(self.force)):
             # TODO: add partial pivot to avoid zero pivot failure
             pivot = self.stiffness[i, i]
@@ -34,7 +34,7 @@ class gaussianElimination:
                 self.stiffness[j, i:] = self.stiffness[j, i:] - factor * self.stiffness[i, i:]
                 self.force[j] = self.force[j] - factor * self.force[i]
 
-    def back_subtract_new(self):
+    def back_subtract(self):
         self.displacements = np.zeros(len(self.force))
 
         for i in range(len(self.force) - 1, -1, -1):
@@ -43,42 +43,7 @@ class gaussianElimination:
             # u_i = (F_i - sum_knowns) / K_ii
             self.displacements[i] = (self.force[i] - sum_knowns) / self.stiffness[i, i]
 
-
     # TODO: Add multi-proccess functionallity to forward_elimination
-
-    def forward_elimination(self, stiffness, force, column):
-        """
-        Applied forward elimination to reduce stiffness matrix to upper
-        triangle.
-        """
-
-        base_row = stiffness.iloc[column]
-        for row in range(column + 1, len(stiffness)):
-            if stiffness.iloc[row, column] != 0:
-                multi = stiffness.iloc[row, column] / base_row.iloc[column]
-                base_row_temp = base_row * multi
-                stiffness.iloc[row] = (stiffness.iloc[row] - base_row_temp)
-                force.iloc[row] = (
-                    force.iloc[row] - (force.iloc[column] * multi)
-                )
-        return stiffness, force
-
-    def back_subtract(self, stiffness, force):
-        """
-        Back back_subtract upper triangle to solve unknown displacements
-        """
-
-        displacements = pd.Series(0, index=stiffness.index)
-        for row in range(len(displacements) - 1, -1, -1):
-            displacements.iloc[row] = force.iloc[row] / stiffness.iloc[row, -1]
-            stiffness.drop(stiffness.index[row], inplace=True)
-            force.drop(force.index[row], inplace=True)
-            for row_ in range(len(stiffness)):
-                force.iloc[row_] = force.iloc[row_] - (
-                    stiffness.iloc[row_, -1] * displacements.iloc[row]
-                )
-            stiffness.drop(stiffness.columns[row], axis=1, inplace=True)
-        return displacements
 
 
 if __name__ == "__main__":
