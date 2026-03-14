@@ -55,7 +55,7 @@ class Solver:
         Updates displacements dataSeries with known nodal displacements.
         """
 
-        print(f"Defining boundary conditions")
+        print("Defining boundary conditions")
 
         for boundary in self.model["boundary"]:
             if isinstance(boundary, str):
@@ -78,7 +78,7 @@ class Solver:
         Updates forces dataSeries with known applied forces.
         """
 
-        print(f"Defining loads")
+        print("Defining loads")
 
         if bool(self.model["load"]) is False:
             # Model is displacement driven
@@ -102,7 +102,7 @@ class Solver:
         Defines element stiffness matrix for all model elements.
         """
 
-        print(f"Generating element stiffness matricies")
+        print("Generating element stiffness matricies")
 
         for element in self.model["elements"]:
             element_type = self.model["elements"][element]["type"]
@@ -130,7 +130,7 @@ class Solver:
         Defines global stiffness matrix based on element stiffness matrices.
         """
 
-        print(f"Generating global stiffness matrix")
+        print("Generating global stiffness matrix")
 
         try:
             self.global_stiffness_matrix = pd.DataFrame(
@@ -179,7 +179,7 @@ class Solver:
         constrained boundary condition is defined.
         """
 
-        print(f"Reducing global stiffness matix")
+        print("Reducing global stiffness matix")
 
         global_stiffness_matrix = self.global_stiffness_matrix.to_numpy()
         displacements = self.displacements.to_numpy()
@@ -204,7 +204,7 @@ class Solver:
         and applied forces.
         """
 
-        print(f"Computing displacements")
+        print("Computing displacements")
         global_stiffness_matrix = self.global_stiffness_matrix_reduced
         forces = self.forces
 
@@ -234,7 +234,7 @@ class Solver:
         Calculates element in-plane stresses.
         """
 
-        print(f"Computing normal stress")
+        print("Computing normal stress")
 
         elements = self.model["elements"].keys()
         self.stress_normal = pd.DataFrame(
@@ -265,7 +265,7 @@ class Solver:
         Calculates element principal stresses.
         """
 
-        print(f"Computing principal stress")
+        print("Computing principal stress")
 
         self.stress_principal = pd.DataFrame(
             index=self.element_index,
@@ -297,7 +297,7 @@ class Solver:
         Calculates element von Mises stress
         """
 
-        print(f"Computing von Mises stress")
+        print("Computing von Mises stress")
 
         self.stress_mises = pd.DataFrame(index=self.element_index, columns=["s_mises"])
 
@@ -317,7 +317,7 @@ class Solver:
         terminal.
         """
 
-        print("\n" + "In-plane stress...")
+        print(f"\n In-plane stress...")
         print(
             tabulate(
                 self.stress_normal.head(),
@@ -326,16 +326,16 @@ class Solver:
                 headers=self.stress_normal.columns,
             )
         )
-        print("\n" + "Principal stress...")
+        print(f"\n Principal stress...")
         print(
             tabulate(
-                self.stress_principal.head(),
+                self.stress_principal.iloc[:,:3].head(),
                 tablefmt="grid",
                 numalign="right",
-                headers=self.stress_principal.columns,
+                headers=self.stress_principal.columns[:3],
             )
         )
-        print("\n" + "Mises stress...")
+        print(f"\n Mises stress...")
         print(
             tabulate(
                 self.stress_mises.head(),
