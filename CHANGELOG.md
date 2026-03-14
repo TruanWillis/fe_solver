@@ -1,5 +1,18 @@
 # ChangeLog
 
+## [0.2.2] - 15-03-2026
+### Added
+ - Partial pivot function added to direct_solver
+
+### Changed
+ - Code refactored to move towards alignment with PEP
+ - Print statements to gui log updated
+ - Homogeneous correction moved to dedicated function
+ - Unused code removed
+
+### Fixed
+ - Potential bug relating to data types when solving with direct_solver.py (float64)
+___
 ## [0.2.1] - 14-03-2026
 ### Added
  - stdout replaced with custom function to enable print statements to be passed to gui
