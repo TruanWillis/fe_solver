@@ -210,7 +210,7 @@ class FESolverApp:
         sys.stdout = StdoutRedirector(self.log_queue)
 
         try:
-            self.s = solver.solver(
+            self.s = solver.Solver(
                 self.model,
                 self.fe_solver,
                 self.print_head,

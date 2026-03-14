@@ -1,19 +1,17 @@
 import math as m
 import pprint
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from tabulate import tabulate
-from pathlib import Path
 
-from fe_solver.core import direct_solver
-from fe_solver.core import elements
-from fe_solver.core import model
+from fe_solver.core import direct_solver, elements, model
 
 # import matplotlib.pyplot as plt
 
 
-class solver:
+class Solver:
     def __init__(self, model, fe_solver, print_head, save_matrix, out_dir):
         """
 
@@ -44,25 +42,13 @@ class solver:
                 self.node_headings.append(str(n) + displacement)
 
         self.forces = pd.Series(np.zeros(self.dof), index=self.node_headings)
-
         self.displacements = pd.Series(["*"] * self.dof, index=self.node_headings)
 
         self.element_index = [
             "e" + str(element) for element in self.model["elements"].keys()
         ]
 
-        self.define_element_stiffness()
-        self.define_global_stiffness()
-        self.define_boundary()
-        self.define_load()
-        self.reduce_matrix()
-        self.compute_displacements()
-        self.compute_normal_stress()
-        self.compute_principal_stress()
-        self.compute_mises_stress()
-
-        if print_head:
-            self.print_results()
+        self.run(print_head)
 
     def define_boundary(self):
         """
@@ -93,7 +79,7 @@ class solver:
         """
 
         print(f"Defining loads")
-        
+
         if bool(self.model["load"]) is False:
             # Model is displacement driven
             self.homogeneous_model = False
@@ -162,7 +148,7 @@ class solver:
                 ].element_stiffness_matrix
 
                 for column in element_stiffness_matrix:
-                    for index, row in element_stiffness_matrix.iterrows():
+                    for index, _ in element_stiffness_matrix.iterrows():
                         value = self.global_stiffness_matrix._get_value(
                             index, column
                         ) + element_stiffness_matrix._get_value(index, column)
@@ -205,7 +191,9 @@ class solver:
         else:
             forces = self.forces.to_numpy()
 
-        self.global_stiffness_matrix_reduced = global_stiffness_matrix[np.ix_(mask, mask)]
+        self.global_stiffness_matrix_reduced = global_stiffness_matrix[
+            np.ix_(mask, mask)
+        ]
         forces_reduced = forces[mask]
         self.forces = forces_reduced
         self.index_reduced = np.array(self.node_headings)[mask]
@@ -229,8 +217,8 @@ class solver:
             ).displacements
 
         else:
-          displacement_solution = np.linalg.solve(global_stiffness_matrix, forces)
-            
+            displacement_solution = np.linalg.solve(global_stiffness_matrix, forces)
+
         displacements = pd.Series(displacement_solution, index=self.index_reduced)
 
         if self.homogeneous_model:
@@ -357,6 +345,20 @@ class solver:
             )
         )
 
+    def run(self, print_head):
+        self.define_element_stiffness()
+        self.define_global_stiffness()
+        self.define_boundary()
+        self.define_load()
+        self.reduce_matrix()
+        self.compute_displacements()
+        self.compute_normal_stress()
+        self.compute_principal_stress()
+        self.compute_mises_stress()
+
+        if print_head:
+            self.print_results()
+
 
 if __name__ == "__main__":
     """
@@ -368,7 +370,7 @@ if __name__ == "__main__":
     wk_dir = Path(__file__).resolve().parent.parent
     input = model.load_input(wk_dir / "tests" / "test_data" / f"{test_model}.inp")
     model = model.call_gen_function(input)
-    s = solver(model, False, True, True, wk_dir)
+    s = Solver(model, False, True, True, wk_dir)
 
     pp = pprint.PrettyPrinter(indent=4)
     # pp.pprint(s.__dict__.keys())

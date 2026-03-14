@@ -11,19 +11,19 @@ FIXTURES = Path(__file__).parent / "fixtures"
 def solved_model_1():
     inp = model.load_input(FIXTURES / "test_input_1.inp")
     m = model.call_gen_function(inp)
-    return solver.solver(m, True, False, False, Path(""))
+    return solver.Solver(m, True, False, False, Path(""))
 
 @pytest.fixture
 def solved_model_2():
     inp = model.load_input(FIXTURES / "test_input_2.inp")
     m = model.call_gen_function(inp)
-    return solver.solver(m, True, False, False, Path(""))
+    return solver.Solver(m, True, False, False, Path(""))
 
 @pytest.fixture
 def solved_model_3():
     inp = model.load_input(FIXTURES / "test_input_3.inp")
     m = model.call_gen_function(inp)
-    return solver.solver(m, True, False, False, Path(""))
+    return solver.Solver(m, True, False, False, Path(""))
 
 
 # --- Model generation tests ---
