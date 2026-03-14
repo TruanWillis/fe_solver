@@ -1,5 +1,4 @@
 import math as m
-import os
 import pprint
 
 import numpy as np
@@ -218,22 +217,19 @@ class solver:
         """
 
         print(f"Computing displacements")
+        global_stiffness_matrix = self.global_stiffness_matrix_reduced
+        forces = self.forces
+
+        global_stiffness_matrix = global_stiffness_matrix.astype("float64")
+        forces = forces.astype("float64")
 
         if self.fe_solver:
-            displacement_solution = direct_solver.gaussianElimination(
-                self.global_stiffness_matrix_reduced, self.forces
+            displacement_solution = direct_solver.GaussianElimination(
+                global_stiffness_matrix, forces
             ).displacements
 
         else:
-            # global_stiffness_matrix = self.global_stiffness_matrix_reduced.to_numpy()
-            # forces = self.forces.to_numpy()
-            global_stiffness_matrix = self.global_stiffness_matrix_reduced
-            forces = self.forces
-
-            global_stiffness_matrix = global_stiffness_matrix.astype("float64")
-            forces = forces.astype("float64")
-
-            displacement_solution = np.linalg.solve(global_stiffness_matrix, forces)
+          displacement_solution = np.linalg.solve(global_stiffness_matrix, forces)
             
         displacements = pd.Series(displacement_solution, index=self.index_reduced)
 
