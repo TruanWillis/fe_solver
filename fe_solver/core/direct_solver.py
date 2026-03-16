@@ -10,6 +10,9 @@ class GaussianElimination:
 
     def __init__(self, stiffness, force):
         """
+        Initialises Gaussian elimination and run through solution to derive 
+        displacements.
+
         Args:
             stiffness (np.ndarray): Stiffness matrix.
             force (np.ndarray): Applied nodal forces.

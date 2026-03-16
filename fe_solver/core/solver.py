@@ -12,19 +12,37 @@ from fe_solver.core import direct_solver, elements, model
 
 
 class Solver:
+    """
+    The solver operates in two distinct phases:
+
+    Assembly phase (pandas):
+        Element and global stiffness matrices are assembled using
+        pandas DataFrames with labelled DOF indices. Label-based
+        indexing makes the assembly process explicit and traceable.
+
+    Solve phase (numpy):
+        The assembled system is converted to numpy arrays before being solved using
+        numpy linear function or FEsolver's implementation of Guassian elimination.
+    """
+
     def __init__(self, model, fe_solver, print_head, save_matrix, out_dir):
         """
+        Initialises the solver and run through solution process.
 
         Args:
             model (dict): Model defined using keywords.
-            fe_solver (boolean): Uses direct solver/numpy if Ture/False.
-            print_head (boolean): Prints stress dataFrame head to terminal.
-            save_matrix (boolean): Saves global stiffness matrix as csv.
-            out_dir (string): Directory for global stiffness matrix csv.
+            fe_solver (bool): Uses direct solver/numpy if Ture/False.
+            print_head (bool): Prints stress dataFrame head to terminal.
+            save_matrix (bool): Saves global stiffness matrix as csv.
+            out_dir (Path): Directory for output files.
         """
 
         self.model = model
         self.fe_solver = fe_solver
+        self.save_matrix = save_matrix
+        self.out_dir = out_dir / "outputs"
+        if self.save_matrix:
+            Path(self.out_dir).mkdir(parents=True, exist_ok=True)
 
         if self.fe_solver:
             print("Direct solver: FEsolver")
@@ -33,27 +51,107 @@ class Solver:
 
         # Assumes model is loaded with a force by default
         self.homogeneous_model = True
-        self.save_matrix = save_matrix
-        self.out_dir = out_dir / "outputs"
-        if self.save_matrix:
-            Path(self.out_dir).mkdir(parents=True, exist_ok=True)
 
         node_count = len(self.model["nodes"].keys())
         self.dof = node_count * 2
 
-        self.node_headings = []
-        for n in range(1, node_count + 1):
-            for displacement in ["u", "v"]:
-                self.node_headings.append(str(n) + displacement)
+        self.node_headings = [
+            f"{n}{dof}" for n in range(1, node_count + 1) for dof in ["u", "v"]
+        ]
+
+        self.element_index = [f"e{element}" for element in self.model["elements"]]
 
         self.forces = pd.Series(np.zeros(self.dof), index=self.node_headings)
         self.displacements = pd.Series(["*"] * self.dof, index=self.node_headings)
 
-        self.element_index = [
-            "e" + str(element) for element in self.model["elements"].keys()
-        ]
-
         self.run(print_head)
+
+    def run(self, print_head):
+        """
+        Runs through FEsolver solution process. Pandas is used for assembly, numpy
+        arrays used for solution.
+        """
+        self.define_element_stiffness()
+        self.define_global_stiffness()
+        self.define_boundary()
+        self.define_load()
+        self.reduce_matrix()
+        self.compute_displacements()
+        self.compute_normal_stress()
+        self.compute_principal_stress()
+        self.compute_mises_stress()
+
+        if print_head:
+            self.print_results()
+
+    def define_element_stiffness(self):
+        """
+        Defines element stiffness matrix for all model elements.
+        """
+
+        print("Generating element stiffness matricies")
+
+        for element_number, element_data in self.model["elements"].items():
+            node_list = element_data["nodes"]
+            x_cord = [self.model["nodes"][node][0] for node in node_list]
+            y_cord = [self.model["nodes"][node][1] for node in node_list]
+
+            cst = elements.element(
+                element_data["type"],
+                x_cord,
+                y_cord,
+                node_list,
+                self.model["elasticity"][0],  # Young's modulus E
+                self.model["elasticity"][1],  # Poisson's ratio v
+                self.model["section"]["thickness"],
+            )
+
+            self.model["elements"][element_number]["K"] = cst
+
+    def define_global_stiffness(self):
+        """
+        Defines global stiffness matrix based on element stiffness matrices.
+        """
+
+        print("Generating global stiffness matrix")
+
+        try:
+            self.global_stiffness_matrix = pd.DataFrame(
+                np.zeros((self.dof, self.dof)),
+                columns=self.node_headings,
+                index=self.node_headings,
+            )
+
+            if self.save_matrix:
+                self.global_stiffness_matrix_save = self.global_stiffness_matrix.copy()
+
+            for element_number, element_data in self.model["elements"].items():
+                element_stiffness_matrix = element_data["K"].element_stiffness_matrix
+
+                for col in element_stiffness_matrix.columns:
+                    for row in element_stiffness_matrix.index():
+                        self.global_stiffness_matrix.at[
+                            row, col
+                        ] += element_stiffness_matrix.at[row, col]
+
+                        if self.save_matrix:
+                            existing = self.global_stiffness_matrix_save.at[row, col]
+                            label = f"e{element_number}"
+                            self.global_stiffness_matrix_save.at[row, col] = (
+                                label if existing == 0 else f"{existing}, {label}"
+                            )
+
+        except Exception as e:
+            print(e)
+
+        print(f"Global stiffness matrix: {self.dof}x{self.dof}")
+
+        if self.save_matrix:
+            self.global_stiffness_matrix_save.to_csv(
+                self.out_dir / "stiffness_matrix.csv"
+            )
+            print("Saved to output: stiffness_matrix.csv")
+            print("Saved to output: displacement_matrix.csv")
 
     def define_boundary(self):
         """
@@ -101,86 +199,6 @@ class Solver:
                             self.forces._set_value(
                                 str(n) + disp, self.model["load"][load][axis]
                             )
-
-    def define_element_stiffness(self):
-        """
-        Defines element stiffness matrix for all model elements.
-        """
-
-        print("Generating element stiffness matricies")
-
-        for element in self.model["elements"]:
-            element_type = self.model["elements"][element]["type"]
-            node_list = self.model["elements"][element]["nodes"]
-            x_cord = []
-            y_cord = []
-            for node in node_list:
-                x_cord.append(self.model["nodes"][node][0])
-                y_cord.append(self.model["nodes"][node][1])
-
-            cst = elements.element(
-                element_type,
-                x_cord,
-                y_cord,
-                node_list,
-                self.model["elasticity"][0],
-                self.model["elasticity"][1],
-                self.model["section"]["thickness"],
-            )
-
-            self.model["elements"][element]["K"] = cst
-
-    def define_global_stiffness(self):
-        """
-        Defines global stiffness matrix based on element stiffness matrices.
-        """
-
-        print("Generating global stiffness matrix")
-
-        try:
-            self.global_stiffness_matrix = pd.DataFrame(
-                np.zeros((self.dof, self.dof)),
-                columns=self.node_headings,
-                index=self.node_headings,
-            )
-
-            if self.save_matrix:
-                self.global_stiffness_matrix_save = self.global_stiffness_matrix.copy()
-
-            for e in self.model["elements"]:
-                element_stiffness_matrix = self.model["elements"][e][
-                    "K"
-                ].element_stiffness_matrix
-
-                for column in element_stiffness_matrix:
-                    for index, _ in element_stiffness_matrix.iterrows():
-                        value = self.global_stiffness_matrix._get_value(
-                            index, column
-                        ) + element_stiffness_matrix._get_value(index, column)
-                        self.global_stiffness_matrix._set_value(index, column, value)
-
-                        if self.save_matrix:
-                            ident = self.global_stiffness_matrix_save._get_value(
-                                index, column
-                            )
-                            if ident == 0:
-                                ident = "e" + str(e)
-                            else:
-                                ident = ident + ", e" + str(e)
-                            self.global_stiffness_matrix_save._set_value(
-                                index, column, ident
-                            )
-        except Exception as e:
-            print(e)
-
-        print(f"Global stiffness matrix: {self.dof}x{self.dof}")
-
-        if self.save_matrix:
-            self.global_stiffness_matrix_save.to_csv(
-                self.out_dir / "stiffness_matrix.csv"
-            )
-            print("Saved to output: stiffness_matrix.csv")
-            print("Saved to output: displacement_matrix.csv")
 
     def reduce_matrix(self):
         """
@@ -236,7 +254,7 @@ class Solver:
 
         for index, displacement in displacements_corrected.items():
             self.displacements._set_value(index, displacement)
-    
+
     def apply_sign_correction(self, displacements):
         """
         Reverse displacement sign for displacement driven models (non-homogeneous).
@@ -346,7 +364,7 @@ class Solver:
         print("Principal stress...")
         print(
             tabulate(
-                self.stress_principal.iloc[:,:3].head(),
+                self.stress_principal.iloc[:, :3].head(),
                 tablefmt="grid",
                 numalign="right",
                 headers=self.stress_principal.columns[:3],
@@ -361,20 +379,6 @@ class Solver:
                 headers=self.stress_mises.columns,
             )
         )
-
-    def run(self, print_head):
-        self.define_element_stiffness()
-        self.define_global_stiffness()
-        self.define_boundary()
-        self.define_load()
-        self.reduce_matrix()
-        self.compute_displacements()
-        self.compute_normal_stress()
-        self.compute_principal_stress()
-        self.compute_mises_stress()
-
-        if print_head:
-            self.print_results()
 
 
 if __name__ == "__main__":
