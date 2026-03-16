@@ -6,13 +6,6 @@ class GaussianElimination:
     Solves displacements using Gaussian elimination with partial pivoting.
 
     See: docs/theory.md — Section 7.
-
-    Args:
-        stiffness (np.ndarray): Stiffness matrix.
-        force (np.ndarray): Applied nodal forces.
-
-    Attributes:
-        displacements (np.ndarray): Solved displacements.
     """
 
     def __init__(self, stiffness, force):
