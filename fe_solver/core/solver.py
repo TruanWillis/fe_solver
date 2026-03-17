@@ -73,8 +73,7 @@ class Solver:
         """
         self.define_element_stiffness()
         self.define_global_stiffness()
-        self.define_boundary()
-        self.define_load()
+        self.define_boundary_conditions()
         self.reduce_matrix()
         self.compute_displacements()
         self.compute_normal_stress()
@@ -129,7 +128,7 @@ class Solver:
                 element_stiffness_matrix = element_data["K"].element_stiffness_matrix
 
                 for col in element_stiffness_matrix.columns:
-                    for row in element_stiffness_matrix.index():
+                    for row in element_stiffness_matrix.index:
                         self.global_stiffness_matrix.at[
                             row, col
                         ] += element_stiffness_matrix.at[row, col]
@@ -146,59 +145,46 @@ class Solver:
 
         print(f"Global stiffness matrix: {self.dof}x{self.dof}")
 
-        if self.save_matrix:
-            self.global_stiffness_matrix_save.to_csv(
-                self.out_dir / "stiffness_matrix.csv"
-            )
-            print("Saved to output: stiffness_matrix.csv")
-            print("Saved to output: displacement_matrix.csv")
-
-    def define_boundary(self):
+    def define_boundary_conditions(self):
         """
-        Updates displacements dataSeries with known nodal displacements.
+        Updates displacement and forces dataSeries with known boundary conditions.
         """
 
-        # print("Defining boundary conditions")
+        print(self.displacements)
+        print(self.forces)
 
-        for boundary in self.model["boundary"]:
-            if isinstance(boundary, str):
-                node_list = self.model["nodesets"][boundary]
-                for axis in self.model["boundary"][boundary].keys():
-                    for n in node_list:
-                        if axis == "1":
-                            disp = "u"
-                        elif axis == "2":
-                            disp = "v"
-                        self.displacements._set_value(
-                            str(n) + disp, self.model["boundary"][boundary][axis]
-                        )
+        self.assemble_dof_series(self.displacements, "boundary")
 
         if self.save_matrix:
             self.displacements.to_csv(self.out_dir / "displacements_matrix.csv")
-
-    def define_load(self):
-        """
-        Updates forces dataSeries with known applied forces.
-        """
-
-        # print("Defining loads")
 
         if bool(self.model["load"]) is False:
             # Model is displacement driven
             self.homogeneous_model = False
         else:
-            for load in self.model["load"]:
-                if isinstance(load, str):
-                    node_list = self.model["nodesets"][load]
-                    for axis in self.model["load"][load].keys():
-                        for n in node_list:
-                            if axis == "1":
-                                disp = "u"
-                            elif axis == "2":
-                                disp = "v"
-                            self.forces._set_value(
-                                str(n) + disp, self.model["load"][load][axis]
-                            )
+            self.assemble_dof_series(self.forces, "load")
+
+        print(self.displacements)
+        print(self.forces)
+
+    def assemble_dof_series(self, series, condition):
+        """
+        Iterates through boundary conditions and assigns values to dataSeries.
+        """
+
+        for ident, dof_values in self.model[condition].items():
+            if isinstance(ident, str) and ident in self.model["nodesets"]:
+                node_list = self.model["nodesets"][ident]
+            else:
+                node_list = [int(ident)]
+
+            for axis, value in dof_values.items():
+                if axis == "1":
+                    direction = "u"
+                elif axis == "2":
+                    direction = "v"
+                for n in node_list:
+                    series.at[f"{n}{direction}"] = value
 
     def reduce_matrix(self):
         """
@@ -208,58 +194,52 @@ class Solver:
 
         print("Reducing global stiffness matix")
 
-        global_stiffness_matrix = self.global_stiffness_matrix.to_numpy()
+        stiffness_matrix = self.global_stiffness_matrix.to_numpy(dtype=np.float64)
         displacements = self.displacements.to_numpy()
         mask = self.model["active_mask"]
 
-        if not self.homogeneous_model:
-            displacements[displacements == "*"] = 0.0
-            forces = np.dot(global_stiffness_matrix, displacements)
+        if self.homogeneous_model:
+            forces = self.forces.to_numpy(dtype=np.float64)
         else:
-            forces = self.forces.to_numpy()
+            displacements = np.where(
+                displacements == "*",  0.0, displacements).astype(np.float64)
+            forces = np.dot(stiffness_matrix, displacements)
 
-        self.global_stiffness_matrix_reduced = global_stiffness_matrix[
+        self.global_stiffness_matrix_reduced = stiffness_matrix[
             np.ix_(mask, mask)
         ]
-        forces_reduced = forces[mask]
-        self.forces = forces_reduced
+        self.forces_reduced = forces[mask]
+        self.forces = forces
         self.index_reduced = np.array(self.node_headings)[mask]
 
-        print(f"System reduced from {self.dof} to {len(self.forces)} free DOFs")
+        print(f"System reduced from {self.dof} to {len(self.forces_reduced)} free DOFs")
 
     def compute_displacements(self):
         """
         Calculates nodal displacements as a function of global stiffness matrix
         and applied forces.
         """
-
         print("Computing displacements")
-
-        global_stiffness_matrix = self.global_stiffness_matrix_reduced
-        forces = self.forces
-
-        global_stiffness_matrix = global_stiffness_matrix.astype("float64")
-        forces = forces.astype("float64")
 
         if self.fe_solver:
             displacement_solution = direct_solver.GaussianElimination(
-                global_stiffness_matrix, forces
+                self.global_stiffness_matrix_reduced, self.forces_reduced
             ).displacements
 
         else:
-            displacement_solution = np.linalg.solve(global_stiffness_matrix, forces)
+            displacement_solution = np.linalg.solve(
+                self.global_stiffness_matrix_reduced, self.forces_reduced)
 
         displacements = pd.Series(displacement_solution, index=self.index_reduced)
         displacements_corrected = self.apply_sign_correction(displacements)
 
         for index, displacement in displacements_corrected.items():
-            self.displacements._set_value(index, displacement)
+            self.displacements.at[index] = displacement
 
     def apply_sign_correction(self, displacements):
         """
         Reverse displacement sign for displacement driven models (non-homogeneous).
         """
-
         if self.homogeneous_model:
             return displacements
         return displacements * -1
@@ -282,14 +262,14 @@ class Solver:
             count = 0
             for node in node_list:
                 for disp in ["u", "v"]:
-                    u[count] = self.displacements[str(node) + disp]
+                    u[count] = self.displacements[f"{node}{disp}"]
                     count += 1
 
             D = self.model["elements"][element]["K"].D
             B = self.model["elements"][element]["K"].B
 
             normal_stress = np.matmul(np.matmul(D, B), u)
-            self.stress_normal.loc["e" + str(element)] = [
+            self.stress_normal.loc[f"e{element}"] = [
                 normal_stress[0],
                 normal_stress[1],
                 normal_stress[2],
@@ -309,22 +289,18 @@ class Solver:
 
         for index, row in self.stress_normal.iterrows():
             Sx, Sy, Sxy = row[0], row[1], row[2]
-            s1 = ((Sx + Sy) / 2) + m.sqrt(((Sx - Sy) / 2) ** 2 + Sxy**2)
-            s2 = ((Sx + Sy) / 2) - m.sqrt(((Sx - Sy) / 2) ** 2 + Sxy**2)
-            s12 = m.sqrt(((Sx - Sy) / 2) ** 2 + Sxy**2)
-            if Sx == Sy:
-                angle = 0
-                opp = 0
-                adj = s1
-            else:
-                try:
-                    angle = -0.5 * m.atan((2 * Sxy) / (Sx - Sy))
-                    opp = m.sin(angle) * s1
-                    adj = m.cos(angle) * s1
-                except Exception:
-                    angle = 0
-                    opp = 0
-                    adj = s1
+
+            radius = m.sqrt(((Sx - Sy) / 2) ** 2 + Sxy**2)
+            centre = (Sx + Sy) / 2
+
+            s1 = centre + radius
+            s2 = centre - radius
+            s12 = radius
+
+            angle = -0.5 * m.atan2(2 * Sxy, Sx - Sy)
+            opp = m.sin(angle) * s1
+            adj = m.cos(angle) * s1
+
             self.stress_principal.loc[index] = [s1, s2, s12, angle, opp, adj]
 
     def compute_mises_stress(self):
@@ -388,10 +364,10 @@ if __name__ == "__main__":
 
     test_model = "test_input_1"
 
-    wk_dir = Path(__file__).resolve().parent.parent
-    input = model.load_input(wk_dir / "tests" / "test_data" / f"{test_model}.inp")
+    wk_dir = Path(__file__).resolve().parent.parent.parent
+    input = model.load_input(wk_dir / "tests" / "fixtures" / f"{test_model}.inp")
     model = model.call_gen_function(input)
-    s = Solver(model, False, True, True, wk_dir)
+    s = Solver(model, False, True, False, wk_dir)
 
     pp = pprint.PrettyPrinter(indent=4)
     # pp.pprint(s.__dict__.keys())
