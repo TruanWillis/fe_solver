@@ -201,13 +201,12 @@ class Solver:
         if self.homogeneous_model:
             forces = self.forces.to_numpy(dtype=np.float64)
         else:
-            displacements = np.where(
-                displacements == "*",  0.0, displacements).astype(np.float64)
+            displacements = np.where(displacements == "*", 0.0, displacements).astype(
+                np.float64
+            )
             forces = np.dot(stiffness_matrix, displacements)
 
-        self.global_stiffness_matrix_reduced = stiffness_matrix[
-            np.ix_(mask, mask)
-        ]
+        self.global_stiffness_matrix_reduced = stiffness_matrix[np.ix_(mask, mask)]
         self.forces_reduced = forces[mask]
         self.forces = forces
         self.index_reduced = np.array(self.node_headings)[mask]
@@ -228,7 +227,8 @@ class Solver:
 
         else:
             displacement_solution = np.linalg.solve(
-                self.global_stiffness_matrix_reduced, self.forces_reduced)
+                self.global_stiffness_matrix_reduced, self.forces_reduced
+            )
 
         displacements = pd.Series(displacement_solution, index=self.index_reduced)
         displacements_corrected = self.apply_sign_correction(displacements)
@@ -372,4 +372,3 @@ if __name__ == "__main__":
     pp.pprint(s.displacements)
     pp.pprint(s.forces)
     pp.pprint(s.stress_normal["s1"]["e8"])
-
