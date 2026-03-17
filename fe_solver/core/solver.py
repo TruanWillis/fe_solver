@@ -358,9 +358,7 @@ class Solver:
 
 
 if __name__ == "__main__":
-    """
-    __main__ for development purposes.
-    """
+    # __main__ for development purposes.
 
     test_model = "test_input_1"
 
@@ -375,41 +373,3 @@ if __name__ == "__main__":
     pp.pprint(s.forces)
     pp.pprint(s.stress_normal["s1"]["e8"])
 
-    """
-    sm = s.global_stiffness_matrix
-    print(sm.head())
-
-    x = np.repeat(np.arange(0.5, s.dof + 0.5, 1), s.dof)
-    y = np.arange(0.5, s.dof + 0.5, 1)
-    y = np.tile(y, s.dof)
-
-    v = []
-    max_value = sm.max()
-    max_value = max_value.max()
-    for index, row in sm.iterrows():
-        v_row = [abs(i)/max_value for i in list(row)]
-        v.extend(v_row)
-
-    marker_size = 3600 / s.dof
-
-    fig, ax = plt.subplots()
-    print(fig, ax)
-    ax.scatter(x, y, marker='s', alpha=v, s=marker_size)
-
-    if s.dof < 300:
-        ax.grid(True, linewidth=0.5)
-
-    ticks = np.arange(0, s.dof + 2, 2)
-    ax.set_xticks(ticks)
-    ax.set_yticks(ticks)
-
-    ax.xaxis.tick_top()
-    ax.set_xlim(0, s.dof)
-    ax.set_ylim(0, s.dof)
-    ax.set_aspect('equal', adjustable='box')
-    ax.invert_yaxis()
-    ax.tick_params(left=False, right=False, labelleft=False, labeltop=False, top=False)
-
-    plt.tight_layout()
-    plt.show()
-    """
