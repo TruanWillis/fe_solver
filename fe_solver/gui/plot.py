@@ -21,9 +21,6 @@ def plot_results(model, solution, deformation_scale, window_name, plot_matrix):
         window_name (string): Window title for gui and plots
         plot_matrix (boolean): Plots global stiffness matrix heat map.
     """
-
-    print("\n" + "Plotting results...")
-
     stress_mises = solution.stress_mises["s_mises"].tolist()
     displacements = solution.displacements.tolist()
 

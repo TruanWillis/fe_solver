@@ -76,6 +76,7 @@ class Solver:
         self.define_boundary_conditions()
         self.reduce_matrix()
         self.compute_displacements()
+        self.compute_reaction_forces()
         self.compute_normal_stress()
         self.compute_principal_stress()
         self.compute_mises_stress()
@@ -149,10 +150,6 @@ class Solver:
         """
         Updates displacement and forces dataSeries with known boundary conditions.
         """
-
-        print(self.displacements)
-        print(self.forces)
-
         self.assemble_dof_series(self.displacements, "boundary")
 
         if self.save_matrix:
@@ -163,9 +160,6 @@ class Solver:
             self.homogeneous_model = False
         else:
             self.assemble_dof_series(self.forces, "load")
-
-        print(self.displacements)
-        print(self.forces)
 
     def assemble_dof_series(self, series, condition):
         """
@@ -275,6 +269,43 @@ class Solver:
                 normal_stress[2],
             ]
 
+    def compute_reaction_forces(self):
+        """
+        Calculated the reaction force in all nodes to compute the model residuals for
+        validation. Reduces reaction forces to contrained node using active mask and
+        outputs as dataFrame.
+        """
+        stiffness_matrix = self.global_stiffness_matrix.to_numpy(dtype=np.float64)
+        displacements = self.displacements.to_numpy(dtype=np.float64)
+
+        reaction_forces = np.dot(stiffness_matrix, displacements) - self.forces
+        self.reaction_forces = pd.Series(reaction_forces, index=self.node_headings)
+
+        residual = abs(self.reaction_forces.sum() + self.forces.sum())
+        print(f"Residuals: {residual:.2e}")
+        if residual < 1e-6:
+            print("PASS: residuals < 1e-6")
+        else:
+            print("WARNING: check model residuals > 1e-6")
+
+        mask = np.array(self.model["active_mask"])
+        constrained_mask = ~mask
+        constrained_nodes = np.array(self.node_headings)[constrained_mask]
+        node_numbers = sorted(set(node[:-1] for node in constrained_nodes))
+        node_index = [f"n{node_number}" for node_number in node_numbers]
+
+        self.reaction_forces_constrained = pd.DataFrame(
+            index=node_index,
+            columns=["u", "v"],
+        )
+
+        for node in node_numbers:
+            for dof in ["u", "v"]:
+                label = f"{node}{dof}"
+                self.reaction_forces_constrained.at[f"n{node}", dof] = (
+                    self.reaction_forces[label]
+                )
+
     def compute_principal_stress(self):
         """
         Calculates element principal stresses.
@@ -353,6 +384,15 @@ class Solver:
                 tablefmt="grid",
                 numalign="right",
                 headers=self.stress_mises.columns,
+            )
+        )
+        print("Reaction forces stress...")
+        print(
+            tabulate(
+                self.reaction_forces_constrained.head(),
+                tablefmt="grid",
+                numalign="right",
+                headers=self.reaction_forces_constrained.columns,
             )
         )
 
