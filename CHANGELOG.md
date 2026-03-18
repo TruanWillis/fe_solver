@@ -1,5 +1,16 @@
 # ChangeLog
 
+## [0.2.3] - 19-03-2026
+### Added
+ - Reaction load outputs added.
+ - Residual check added.
+
+### Changed
+ - Reaction loads head() print added to solver.py __main__
+
+### Fixed
+ - Rogue print statement in plot.py removed
+
 ## [0.2.2] - 18-03-2026
 ### Added
  - Partial pivot function added to direct_solver.
