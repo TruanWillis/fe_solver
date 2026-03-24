@@ -53,18 +53,18 @@ def test_model_generation_3():
 # --- Displacement tests ---
 
 def test_displacement_1(solved_model_1):
-    d = solved_model_1.odb["node"]["U"].data
+    d = solved_model_1.results["node"]["U"].data
     assert round(d.loc["n5", "u"], 2) == round(1.38778e-17, 2)
     assert round(d.loc["n6", "v"], 2) == round(0.943654, 2)
     assert round(d.loc["n6", "u"], 2) == round(-0.23529, 2)
 
 def test_displacement_2(solved_model_2):
-    d = solved_model_2.odb["node"]["U"].data
+    d = solved_model_2.results["node"]["U"].data
     assert round(d.loc["n5", "u"], 3) == round(2.74679e-34, 3)
     assert round(d.loc["n5", "v"], 3) == round(0.0149603, 3)
 
 def test_displacement_3(solved_model_3):
-    d = solved_model_3.odb["node"]["U"].data
+    d = solved_model_3.results["node"]["U"].data
     assert round(d.loc["n4", "u"], 2) == round(0.01117, 2)
     assert round(d.loc["n4", "v"], 2) == round(0.0119, 2)
 
@@ -72,19 +72,19 @@ def test_displacement_3(solved_model_3):
 # --- In-plane stress tests ---
 
 def test_stress_inplane_1(solved_model_1):
-    s = solved_model_1.odb["element"]["S"].data
+    s = solved_model_1.results["element"]["S"].data
     assert round(s.loc["e1"]["s1"], -1) == round(6923.08, -1)
     assert round(s.loc["e1"]["s2"], -1) == round(23076.9, -1)
     assert round(s.loc["e8"]["s1"], -1) == round(6923.08, -1)
     assert round(s.loc["e8"]["s2"], -1) == round(23076.9, -1)
 
 def test_stress_inplane_2(solved_model_2):
-    s = solved_model_2.odb["element"]["S"].data
+    s = solved_model_2.results["element"]["S"].data
     assert round(s.loc["e7"]["s1"], 0) == round(39.4538, 0)
     assert round(s.loc["e7"]["s2"], -1) == round(131.513, -1)
 
 def test_stress_inplane_3(solved_model_3):
-    s = solved_model_3.odb["element"]["S"].data
+    s = solved_model_3.results["element"]["S"].data
     assert round(s.loc["e2"]["s1"], 1) == round(162.464, 1)
     assert round(s.loc["e2"]["s2"], 1) == round(162.314, 1)
 
@@ -92,14 +92,14 @@ def test_stress_inplane_3(solved_model_3):
 # --- Von Mises stress tests ---
 
 def test_stress_mises_1(solved_model_1):
-    s = solved_model_1.odb["element"]["SM"].data
+    s = solved_model_1.results["element"]["SM"].data
     assert round(s.loc["e1", "s_mises"], -1) == round(20511.2, -1)
     assert round(s.loc["e8", "s_mises"], -1) == round(20511.2, -1)
 
 def test_stress_mises_2(solved_model_2):
-    s = solved_model_2.odb["element"]["SM"].data
+    s = solved_model_2.results["element"]["SM"].data
     assert round(s.loc["e8", "s_mises"], -1) == round(170.328, -1)
 
 def test_stress_mises_3(solved_model_3):
-    s = solved_model_3.odb["element"]["SM"].data
+    s = solved_model_3.results["element"]["SM"].data
     assert round(s.loc["e2", "s_mises"], 1) == round(174.972, 1)

@@ -59,6 +59,7 @@ class Solver:
         self.fe_solver = fe_solver
         self.save_matrix = save_matrix
         self.out_dir = out_dir / "outputs"
+
         if self.save_matrix:
             Path(self.out_dir).mkdir(parents=True, exist_ok=True)
 
@@ -86,7 +87,7 @@ class Solver:
         self.forces = pd.Series(np.zeros(self.dof), index=self.node_headings)
         self.displacements = pd.Series(["*"] * self.dof, index=self.node_headings)
 
-        self.odb = {"element": {}, "node": {}}
+        self.results = {"element": {}, "node": {}}
 
         self.run(print_head)
 
@@ -264,7 +265,7 @@ class Solver:
             dof = f"{index[-1]}"
             data.at[node, dof] = displacement
 
-        self.odb["node"]["U"] = FieldOutputs(
+        self.results["node"]["U"] = FieldOutputs(
             "U", "Displacements", "node", data
         )
 
@@ -307,7 +308,7 @@ class Solver:
                 normal_stress[2],
             ]
 
-        self.odb["element"]["S"] = FieldOutputs(
+        self.results["element"]["S"] = FieldOutputs(
             "S", "Normal Stress", "element", self.stress_normal
         )
 
@@ -330,9 +331,11 @@ class Solver:
         else:
             print("WARNING: check model residuals > 1e-6")
 
-        mask = np.array(self.model["active_mask"])
-        constrained_mask = ~mask
-        constrained_nodes = np.array(self.node_headings)[constrained_mask]
+        #TODO: Currently all nodal forces are reported, not constrained node.
+
+        # mask = np.array(self.model["active_mask"])
+        # constrained_mask = ~mask
+        # constrained_nodes = np.array(self.node_headings)[constrained_mask]
         node_index = [f"n{node_number}" for node_number in self.node_numbers]
 
         reaction_forces_constrained = pd.DataFrame(
@@ -347,7 +350,7 @@ class Solver:
                     reaction_forces[label]
                 )
 
-        self.odb["node"]["RF"] = FieldOutputs(
+        self.results["node"]["RF"] = FieldOutputs(
             "RF", "Reaction Force", "node", reaction_forces_constrained
         )
 
@@ -379,7 +382,7 @@ class Solver:
 
             stress_principal.loc[index] = [s1, s2, s12, angle, opp, adj]
 
-        self.odb["element"]["SP"] = FieldOutputs(
+        self.results["element"]["SP"] = FieldOutputs(
             "SP", "Stress Principal", "element", stress_principal
         )
 
@@ -402,7 +405,7 @@ class Solver:
             )
             stress_mises.loc[index] = mises
 
-        self.odb["element"]["SM"] = FieldOutputs(
+        self.results["element"]["SM"] = FieldOutputs(
             "SM", "Stress Mises", "element", stress_mises
         )
 
@@ -411,7 +414,7 @@ class Solver:
         Prints all field output dataFrame heads to terminal.
         """
 
-        for _, field_outputs in self.odb.items():
+        for _, field_outputs in self.results.items():
             for _, results in field_outputs.items():
                 print(f"{results.description}...")
                 print(
@@ -439,5 +442,5 @@ if __name__ == "__main__":
     pp.pprint(s.displacements)
     pp.pprint(s.forces)
     pp.pprint(s.stress_normal["s1"]["e8"])
-    pp.pprint(s.odb)
-    print(s.odb["element"]["S"].data.loc["e1", "s1"])
+    pp.pprint(s.results)
+    print(s.results["element"]["S"].data.loc["e1", "s1"])
