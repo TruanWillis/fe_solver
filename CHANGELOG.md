@@ -4,12 +4,16 @@
 ### Added
  - Reaction load outputs added.
  - Residual check added.
+ - FieldOutput class added for storing results
 
 ### Changed
  - Reaction loads head() print added to solver.py __main__
+ - gui and plot logic updated to handle new FieldOutput class.
 
 ### Fixed
  - Rogue print statement in plot.py removed
+ - Better alignment with PEP8 
+ - Unused code deleted or commented out
 
 ## [0.2.2] - 18-03-2026
 ### Added
