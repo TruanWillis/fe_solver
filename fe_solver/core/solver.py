@@ -121,7 +121,7 @@ class Solver:
             x_cord = [self.model["nodes"][node][0] for node in node_list]
             y_cord = [self.model["nodes"][node][1] for node in node_list]
 
-            cst = elements.element(
+            cst = elements.Element(
                 element_data["type"],
                 x_cord,
                 y_cord,

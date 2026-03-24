@@ -1,12 +1,10 @@
-import os
+import copy
 
 import numpy as np
 import pandas as pd
 
-from fe_solver.core import model
 
-
-class element:
+class Element:
     def __init__(self, element_type, x_cord, y_cord, node_list, E, v, t):
         """
         Initiates element class object.
@@ -19,9 +17,6 @@ class element:
             v (int): Poisson's ratio.
             t (int): Shell thickness.
         """
-
-        x_cord += [0] * 30
-        y_cord += [0] * 30
 
         element_library = {
             "s3": {
@@ -72,7 +67,7 @@ class element:
         Defines the strain-displacement matrix [B] as a numpy array.
         """
 
-        B = self.element_structure["strain_displacement"]
+        B = copy.deepcopy(self.element_structure["strain_displacement"])
         for row in range(0, len(B)):
             for col in range(0, len(B[row])):
                 if B[row][col] != 0:
@@ -113,10 +108,13 @@ if __name__ == "__main__":
     """
     __main__ used for development purposes.
     """
+    from pathlib import Path
+    from fe_solver.core import model
 
-    wk_dir = os.path.dirname(os.path.realpath(__file__))
-    input = model.load_input(wk_dir + "/inp/plate_simple_disp.inp")
-    test_model = model.call_gen_function(input)
+    wk_dir = Path(__file__).resolve().parent.parent.parent
+    examples_dir = wk_dir / "examples"
+    input_file = model.load_input(examples_dir / "plate_simple_disp.inp")
+    test_model = model.call_gen_function(input_file)
     node_list = test_model["elements"][1]["nodes"]
     x_cord = []
     y_cord = []
@@ -124,7 +122,7 @@ if __name__ == "__main__":
         x_cord.append(test_model["nodes"][node][0])
         y_cord.append(test_model["nodes"][node][1])
 
-    cst = element(
+    cst = Element(
         "s3",
         x_cord,
         y_cord,
