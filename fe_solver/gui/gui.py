@@ -235,8 +235,8 @@ class FESolverApp:
 
         self.writeToLog(f"Plotting results {self.inp_path.name}...")
         try:
-            self.writeToLog(f"Max displacement: {float(self.s.displacements.abs().max()):.4e}")
-            self.writeToLog(f"Max von Mises stress: {float(self.s.stress_mises.max()):.4e}")
+            self.writeToLog(f"Max displacement: {float(self.s.results['node']['U'].data.max()):.4e}")
+            self.writeToLog(f"Max von Mises stress: {float(self.s.results['element']['SM'].data.max()):.4e}")
             self.writeToLog("...close to continue...")
             plot.plot_results(
                 self.model, self.s, self.scale, self.window_name, self.save_matrix
