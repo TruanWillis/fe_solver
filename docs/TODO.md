@@ -253,6 +253,25 @@ A uniaxial plate under uniform tension where `σ = F/A` exactly. Worth more than
 current golden-value tests combined, and directly teachable — it's the standard FEA
 verification exercise.
 
+**The model already exists and is verified.** `examples/worked_example.inp` is a 10×10×2 mm
+plate under 2000 N, pinned at node 1 and rollered at node 2. The solver reproduces the
+analytical answer exactly:
+
+| Quantity | Analytical | FEsolver |
+|---|---|---|
+| $\sigma_{yy}$ | 100 MPa | 100.0 |
+| $\sigma_{xx}$, $\tau_{xy}$ | 0 | 0.0 |
+| $v$ at top edge | 0.00476190 mm | 0.004761904761904762 |
+| $u$ at right edge | −0.00142857 mm | −0.0014285714285714286 |
+| Total reaction | −2000 N | −2000.0 |
+
+Refining to four elements (centre node at 5,5) leaves the answer unchanged — 100.0 MPa in
+every element, displacements identical to the last bit — which is the invariance a patch
+test asserts.
+
+Writing the test is now just asserting these values. Walkthrough in
+[worked_example.md](worked_example.md).
+
 ### [ ] 19. Replace pickle fixtures with explicit assertions
 
 `tests/test_solver.py:32-36` compares the parsed model against a pickled golden file.
@@ -327,6 +346,54 @@ behaviour is still worth fixing:
   `model["section"]["elementset"]` are both populated and neither is used — the shell
   section thickness is applied to every element regardless of the set named. Either wire
   it up or drop the dead parsing.
+
+### [ ] 26. Principal stress vectors are plotted 90° out
+
+`solver.py:379-381` computes the principal direction used by the vector plot:
+
+```python
+angle = -0.5 * m.atan2(2 * Sxy, Sx - Sy)
+opp = m.sin(angle) * s1
+adj = m.cos(angle) * s1
+```
+
+`plot.py:98-105` then passes `opp` as the quiver **x** component and `adj` as the **y**
+component. Two errors compound:
+
+1. The sign on `angle` should be positive — the standard result is
+   $\theta_p = \tfrac{1}{2}\arctan_2(2\tau_{xy},\ \sigma_{xx}-\sigma_{yy})$.
+2. With the vector taken as $(x, y)$, the components should be $(\cos\theta, \sin\theta)$.
+   The code supplies $(\sin\theta, \cos\theta)$ — swapped.
+
+Net effect is $(-\sin\theta, \cos\theta)$ where $(\cos\theta, \sin\theta)$ is wanted, which
+is exactly a 90° rotation. Verified against the analytical principal direction across four
+stress states:
+
+| State | plotted vector | true vector | error |
+|---|---|---|---|
+| uniaxial y | (−100.0, 0.0) | (0.0, 100.0) | 90° |
+| uniaxial x | (0.0, 100.0) | (100.0, 0.0) | 90° |
+| pure shear | (−35.4, 35.4) | (35.4, 35.4) | 90° |
+| general (80, 20, 30) | (−35.4, 85.4) | (85.4, 35.4) | 90° |
+
+**`s_max`, `s_min` and `s_shear` are correct** — only the direction is wrong, so this
+affects the "S [Max Principal]" quiver plot alone. Masked until now because that plot has
+been broken since the `FieldOutputs` refactor (item 1).
+
+Reproduce:
+
+```bash
+python -c "
+import math as m
+Sx, Sy, Sxy = 0, 100, 0
+a = -0.5*m.atan2(2*Sxy, Sx-Sy); s1 = 100
+print('plotted:', (m.sin(a)*s1, m.cos(a)*s1))
+t = 0.5*m.atan2(2*Sxy, Sx-Sy)
+print('true   :', (m.cos(t)*s1, m.sin(t)*s1))"
+```
+
+Documented as a limitation in [data_structures.md](data_structures.md) and
+[worked_example.md](worked_example.md) until fixed.
 
 ---
 

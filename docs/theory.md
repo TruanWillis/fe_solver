@@ -45,6 +45,110 @@ Where:
 
 Everything the solver does is either building $[K]$ and $\{F\}$, or solving for $\{u\}$.
 
+### The governing equations
+
+The sentence above skips over *why* the problem is hard. It is worth being precise about
+what the underlying equations actually are, because every later step in the solver is a
+consequence of them.
+
+A loaded solid must satisfy three conditions at **every point** inside it.
+
+**1. Equilibrium.** The internal stresses must balance any applied body force. In 2D
+this is two coupled equations:
+
+$$\frac{\partial \sigma_{xx}}{\partial x} + \frac{\partial \tau_{xy}}{\partial y} + b_x = 0
+\qquad
+\frac{\partial \tau_{xy}}{\partial x} + \frac{\partial \sigma_{yy}}{\partial y} + b_y = 0$$
+
+These say that if stress varies from one side of an infinitesimal block to the other, the
+imbalance must be carried by a body force $b$ — otherwise the block would accelerate.
+
+**2. Compatibility (strain–displacement).** Strain is defined as the spatial derivative
+of displacement. For small strains:
+
+$$\epsilon_{xx} = \frac{\partial u}{\partial x}
+\qquad
+\epsilon_{yy} = \frac{\partial v}{\partial y}
+\qquad
+\gamma_{xy} = \frac{\partial u}{\partial y} + \frac{\partial v}{\partial x}$$
+
+**3. Constitution (stress–strain).** The material links the two, through $E$ and $\nu$:
+
+$$\{\sigma\} = [D]\{\epsilon\}$$
+
+Substituting 3 into 1, and then 2 into that, eliminates stress and strain and leaves two
+coupled second-order **partial differential equations** in the displacements $u(x,y)$ and
+$v(x,y)$ alone. These are the Navier–Cauchy equations. They are *partial* differential
+equations because the unknowns are functions of more than one variable ($x$ and $y$), so
+the derivatives are taken with respect to each direction separately.
+
+### Why the PDEs cannot be solved directly
+
+Written this way the problem looks complete — two equations, two unknown functions. The
+difficulty is not the equations themselves but what is being asked of them:
+
+- The solution is a **function**, not a set of numbers. $u(x,y)$ must be known everywhere,
+  and it must satisfy the equations at every one of infinitely many points.
+- The **boundary conditions follow the geometry**. A closed-form solution has to satisfy
+  the equations on the interior *and* match prescribed displacements or tractions along a
+  boundary that may be an arbitrary shape — a fillet, a hole, a weld toe.
+
+Closed-form solutions exist only for a handful of idealised cases: a uniform bar, a
+circular hole in an infinite plate, a thin beam under simple loading. These are the
+textbook formulae engineers already know, and they are useful precisely because they are
+the rare cases where the PDEs happen to be tractable. For a real bracket they are not.
+
+This is the **strong form** of the problem: satisfy the differential equations exactly, at
+every point.
+
+### From PDE to matrix equation: the weak form
+
+FEA takes a different route. Rather than demanding the equations hold exactly at every
+point, it demands that they hold *on average*, weighted across the structure. Multiplying
+the equilibrium equations by an arbitrary virtual displacement $\delta u$ and integrating
+over the volume gives the **weak form** — equivalent to the principle of virtual work:
+
+$$\int_V \{\delta\epsilon\}^T \{\sigma\}\, dV = \int_V \{\delta u\}^T \{b\}\, dV + \int_S \{\delta u\}^T \{t\}\, dS$$
+
+In words: for any small virtual displacement, the internal work done by the stresses
+equals the external work done by the applied loads.
+
+Two things are gained. First, the integration by parts used to reach this form moves one
+derivative off the stress term and onto the virtual displacement — so the solution now
+only needs to be differentiable **once**, not twice. That is a genuinely weaker
+requirement, and it is what admits the simple piecewise-linear approximations used inside
+elements. Second, an integral over the structure can be split into a sum of integrals over
+small pieces — which is precisely what a mesh is.
+
+Approximating the displacement inside each element as $\{u\} \approx [N]\{u^e\}$ using
+shape functions (Section 2), so that $\{\epsilon\} = [B]\{u^e\}$, and substituting into the
+weak form gives, for one element:
+
+$$\left( \int_V [B]^T [D] [B]\, dV \right) \{u^e\} = \{f^e\}$$
+
+The bracketed integral is the element stiffness matrix. The unknown is no longer a
+function — it is a finite list of nodal displacement values. **The PDE has become
+algebra.**
+
+### Where this lands in the code
+
+For the S3 element $[B]$ and $[D]$ are constant throughout the element, so the integral
+collapses to a multiplication by the volume $A \cdot t$:
+
+$$[K^e] = \int_V [B]^T [D] [B]\, dV = [B]^T [D] [B] \cdot A \cdot t$$
+
+which is exactly the line implemented in `elements.py`:
+
+```python
+element_stiffness = np.matmul(Bt, np.matmul(self.D, self.B)) * self.area * self.t
+```
+
+Every step that follows — assembling elements into a global system, applying boundary
+conditions, solving, recovering stresses — is bookkeeping on top of that one
+transformation from differential equation to matrix equation. Sections 2 to 8 follow it
+through in order, and [worked_example.md](worked_example.md) works a two-element model by
+hand from the `.inp` file to the final stresses.
+
 ### Force-driven vs displacement-driven models
 
 fe_solver supports two loading types, which affects how the system is set up:

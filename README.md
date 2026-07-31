@@ -41,7 +41,10 @@ Run the application:
 python main.py
 ```
 
-Example `.inp` files are provided in `examples/`.
+Example `.inp` files are provided in `examples/`. If you are new to the tool, start with
+`examples/worked_example.inp` and follow it through
+[docs/worked_example.md](docs/worked_example.md), which walks the full solution process
+one calculation at a time.
 
 ### Configuration
 
@@ -95,8 +98,18 @@ pytest
 
 ## Documentation
 
+**Learning the method**
+
+- [FEA Theory](docs/theory.md) — the finite element method as implemented in FEsolver, from the governing PDEs through to stress recovery
+- [Worked Example](docs/worked_example.md) — a two-element model taken by hand from input file to final stresses, with every calculation shown
+
+**Reference**
+
 - [Keyword Reference](docs/keywords.md) — full reference for `.inp` file keywords
-- [FEA Theory](docs/theory.md) — explanation of the finite element method as implemented in FEsolver
+- [Data Structures](docs/data_structures.md) — how the code represents a model, from parsed input to results
+
+**Project**
+
 - [Roadmap](docs/ROADMAP.md) — planned direction and phasing
 - [Work Items](docs/TODO.md) — known issues and open work
 
