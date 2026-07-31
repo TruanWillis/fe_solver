@@ -1,0 +1,227 @@
+# FEsolver — Roadmap
+
+Direction for the next ~12 months. Written 2026-07-31 against `develop` @ `60d8757`.
+
+Item references like *(TODO 3)* point at numbered entries in [TODO.md](TODO.md).
+
+---
+
+## Decisions this roadmap encodes
+
+Recorded so the reasoning survives, and so the plan can be revisited if any of these change.
+
+| Decision | Choice | Consequence |
+|---|---|---|
+| Capability direction | Deepen teaching **+** broaden 2D elements **+** 3D | Sequenced as one path, not three tracks — see below |
+| Coding skills to build | Numerical methods & performance; architecture & typing | Phases 1–3 are built around these deliberately |
+| Audience | Mainly the author now; later **self-guided** training, no live sessions | Diagnostics and error messages become core product, not polish |
+| Abaqus fidelity | Familiar, not compatible | Keep `.inp` look and output naming; reject unsupported syntax loudly |
+
+**Deliberately deferred:** modal, thermal and nonlinear analysis; GUI polish; packaging
+and standalone executables. Each is defensible later. None belongs ahead of the element
+generalisation, and each would add surface area that Phases 1–2 would then have to carry.
+
+---
+
+## The core problem
+
+The three capability goals collapse into one path. The element-library work is the
+*prerequisite* for 3D, and the typed-architecture work is what makes both possible.
+
+What blocks all of it today:
+
+| Location | Blocker |
+|---|---|
+| `elements.py:21-43` | One element hardcoded as a literal dict, closed-form `B`, no numerical integration |
+| `model.py:231` | `dof_suffixes = ['u', 'v']` hardcoded |
+| `solver.py:88` | `"*"` sentinel forces object-dtype and string/float mixing |
+| `solver.py:264-265` | DOFs encoded as strings (`"12u"`) and decoded by slicing |
+| `solver.py:156-167` | Dense `dof × dof` assembly via Python `.at[]` loops |
+
+So the sequencing is forced:
+
+> **Generalise the element abstraction → quads fall out → 3D falls out.**
+
+Attempting 3D on the current structure means writing the same code twice.
+
+**Natural stopping point:** end of Phase 2. If time runs out there, the tool is already
+substantially better and 3D remains an extension rather than a rewrite.
+
+---
+
+## Phase 0 — Stabilise
+
+*Short. Non-negotiable. Blocks everything else.*
+
+The P0/P1 items in [TODO.md](TODO.md).
+
+This is not just hygiene. Phase 2 reimplements the element formulation from scratch, and
+**the residual check is the safety net for that refactor.** Right now it is vacuous
+(TODO 3) and two tests are already red (TODO 2) — so there is currently no way to know
+whether a reimplementation is correct.
+
+**Exit criteria:**
+
+- [ ] `pytest` green on both branches (TODO 1, 2, 5)
+- [ ] Residual check is a real free-DOF norm (TODO 3)
+- [ ] Static condensation rewrite done (TODO 4)
+- [ ] Analytical patch test in place (TODO 18) — the reference every later phase checks against
+- [ ] CI running `pytest` on push (enforces TODO 21 mechanically rather than by discipline)
+
+---
+
+## Phase 1 — Typed model core
+
+*Skill focus: architecture & typing. Prerequisite for Phases 2 and 4.*
+
+Replace the dict-model with dataclasses — `Node`, `Element`, `Material`, `Section`,
+`Model` — and introduce a `DofMap` that owns node→index mapping and is **parameterised by
+dimension** rather than hardcoded to two DOFs per node.
+
+Deleted in one pass: the `"*"` sentinel (TODO 14), the `f"{node}{dof}"` string encoding
+(TODO 15), the `dof_suffixes` hardcode, and the scattered
+`label_to_idx` / `node_headings` / `active_mask` juggling. TODO 11 (multi-material
+silently wrong) disappears for free once materials are real objects.
+
+### This serves readability, it doesn't fight it
+
+`element.material.youngs_modulus` reads better to a non-developer than
+`model["elasticity"][0]`. The typing work and the "verbose and easy to understand"
+goal point the same way here.
+
+### Key architectural insight
+
+**Separate the compute representation from the presentation representation.**
+
+Pandas currently does both, which is why assembly is slow. Compute in numpy; render
+labelled DataFrames for display. The entire teaching benefit of labelled DOF indices is
+retained while the O(dof²) dense `.at[]` loop goes away (TODO 13).
+
+**Exit criteria:**
+
+- [ ] No dict-based model access outside the parser
+- [ ] `DofMap(dim=2)` works; `dim=3` is a parameter, not a rewrite
+- [ ] All existing tests still pass unchanged in behaviour
+- [ ] Type hints throughout `core/`
+
+---
+
+## Phase 2 — Isoparametric element framework
+
+*Skill focus: numerical methods. The largest teaching payoff in the plan.*
+
+Build the general machinery:
+
+- Shape functions `N(ξ)` and derivatives `dN/dξ`, per element type
+- Jacobian, and `B` evaluated at a Gauss point
+- `K = Σ_gp Bᵀ D B · det(J) · w · t`
+
+### Order of work
+
+1. **Reimplement S3 through the new machinery.** Because CST is exact with a single Gauss
+   point, this must reproduce current results to machine precision — a perfect regression
+   test, and the fixtures already exist.
+2. **Add CPS4.** At this point a quad is a shape-function table and a quadrature rule, not
+   a new solver.
+3. Optionally CPS6 / CPS8 later.
+
+### Why this is the prize
+
+It unlocks the single most important practical lesson in linear FEA, which is currently
+**unreachable with one element type**: *CST is a bad element, and trainees need to feel
+why.*
+
+With both elements available:
+
+- Same mesh, S3 vs CPS4, against a known stress concentration factor
+- Shear locking under full vs reduced integration
+- Effect of integration order on accuracy and cost
+- Mesh convergence studies that show *element choice* mattering as much as refinement
+
+### Readability risk and mitigation
+
+An abstract base with protocols is genuinely harder for a non-developer to follow than the
+current flat dict. That is a real cost. Pay it down by keeping each concrete element class
+a short, readable table of shape functions, putting the machinery in one place, and
+**capping inheritance at one level.**
+
+**Exit criteria:**
+
+- [ ] S3 via the framework matches pre-refactor results to machine precision
+- [ ] CPS4 validated against the patch test and an analytical benchmark
+- [ ] A worked comparison doc: S3 vs CPS4 on the same mesh vs textbook Kt
+
+---
+
+## Phase 3 — Performance and sparsity
+
+*Skill focus: numerical methods & performance. Gate before 3D.*
+
+Required before Phase 4 — 3D DOF counts explode and dense assembly walls immediately.
+
+- Triplet (COO) assembly → CSR. Note this is arguably **more** teachable than the current
+  nested loop: "each element contributes to these global positions" is precisely what the
+  triplet form states.
+- `scipy.sparse` — a new dependency, worth it.
+- Profiling as an explicit exercise. Conditioning and solver stability belong here.
+
+Keep the hand-written Gaussian elimination as the *teaching* solver and sparse as the
+*production* path — an extension of the existing `fe_solver` / numpy config toggle, which
+is good design already present.
+
+**Exit criteria:**
+
+- [ ] `plate_hole_disp_refined_mesh.inp` solves in reasonable time
+- [ ] Memory no longer O(dof²)
+- [ ] Solver choice remains user-visible and documented
+
+---
+
+## Phase 4 — 3D
+
+*Now an extension rather than a rewrite.*
+
+- C3D4 tet through the Phase 2 framework
+- `DofMap(dim=3)`
+- `D` matrix becomes 6×6
+- Parser: act on the `# TODO: Update to 3D when ready` markers at `model.py:83` and `:87`
+
+### The real cost is plotting, not mechanics
+
+`plot.py` is 2D throughout and matplotlib's 3D mesh support is poor. Budget the majority
+of this phase there, and expect to evaluate an alternative such as PyVista.
+
+---
+
+## Cross-cutting: diagnostics are the curriculum
+
+**Not a phase — runs alongside everything from Phase 0 onward.**
+
+Training use will be self-guided with no sessions from the author. With nobody present to
+explain a failure, the software has to teach on its own.
+
+This promotes TODO 6, 7 and 12 from tidying to core product. Negative element area,
+unsupported `*Boundary` syntax, and singular systems must each produce a message that
+*explains the FEA concept*, not merely refuses:
+
+> Model is under-constrained — the structure can still move as a rigid body.
+> Check that boundary conditions restrain all rigid-body modes.
+
+That is a lesson. `nan` is not.
+
+The "familiar, not compatible" decision makes this cleaner: reject unsupported Abaqus
+syntax loudly with a pointer to [keywords.md](keywords.md), rather than silently ignoring
+it as `gen_boundary` does today (TODO 7).
+
+Keep [theory.md](theory.md) in step with the code as each phase lands — it is the
+strongest asset in the repo and its value depends entirely on staying accurate.
+
+---
+
+## Principal risk
+
+**Do not start 3D early.**
+
+It is the most exciting item on the list and the most expensive one to sequence wrong.
+Everything in Phases 1–3 makes 3D cheaper. Nothing about doing 3D first makes the rest
+cheaper.
