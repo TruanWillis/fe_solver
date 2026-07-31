@@ -105,8 +105,12 @@ author is better placed to spot a numerically-plausible but physically wrong res
 2. Verify the change numerically and show the command
 3. Tick the relevant `docs/TODO.md` checkbox
 4. Check `docs/theory.md` still matches the implementation
-5. Add a `CHANGELOG.md` entry describing what actually landed, not what was intended
-6. Update the *Current state* section above
+5. Update the *Current state* section above
+
+**CHANGELOG:** do not open a new version section for documentation work on its own.
+Doc updates get rolled into the entry for the code change they accompany. Cutting a
+version number is a release decision and is the author's call — when an entry is due,
+describe what actually landed, not what was intended.
 
 ## Commands
 

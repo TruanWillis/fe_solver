@@ -238,7 +238,9 @@ index would be equally readable and non-parsing. Low priority.
 ### [ ] 17. Housekeeping
 
 - [ ] Version mismatch: `pyproject.toml` says `0.2.1`, `CHANGELOG.md` says `0.2.3`
-- [ ] `README.md` links to `LICENSE`, which doesn't exist in the repo
+- [ ] Add an MIT `LICENSE` file. The dead link has been removed from `README.md`, which
+      now states the licence without linking — restore the link once the file exists.
+      `pyproject.toml` declares no licence either.
 - [ ] `solver.py:437` — `__main__` shadows the `model` module with the model dict
 
 ---
@@ -268,6 +270,63 @@ No test currently asserts:
 - a mixed load + prescribed-displacement model (item 4)
 - a displacement-driven model's residual
 - behaviour on a deliberately under-constrained model (item 12)
+
+---
+
+## Documentation
+
+Raised by the documentation review on 2026-07-31. The mechanical fixes from that review
+(stale function names, dead code snippets, the incorrect partial-pivoting claim, missing
+`*NSET` entry, and so on) are **already applied**. These four are what was deferred
+because they need a decision or depend on pending code changes.
+
+### [ ] 22. Add a reaction force / residual section to `theory.md`
+
+`compute_reaction_forces()` landed in 0.2.3 and `theory.md` has no section for it. It is
+also absent from the Section 9 summary table, which otherwise maps one row per solver
+function.
+
+Needs new derivation content — reactions as $\{R\} = [K]\{u\} - \{F\}$, why they are
+recovered only at constrained DOFs, and what a residual check is actually testing.
+
+**Blocked on item 3.** Writing this now would document a residual check that validates
+nothing. Do item 3 first, then document the corrected version — the *why* of a proper
+residual norm is the teachable part.
+
+### [ ] 23. Fix the homogeneous / non-homogeneous terminology
+
+`theory.md` §1 labels force-driven models "homogeneous" and displacement-driven models
+"non-homogeneous", inheriting the misnomer from `solver.py`. Homogeneous refers to a
+boundary condition with a **zero prescribed value**, not to whether external loads exist.
+
+**Tied to item 4**, which deletes `homogeneous_model` entirely. Cheaper to fix once, when
+that lands, than to correct the docs twice.
+
+### [ ] 24. Rewrite `theory.md` §1 and §5 around static condensation
+
+Both sections present force-driven and displacement-driven loading as mutually exclusive.
+That is accurate to the current code and the current code is wrong (item 4).
+
+A `> **Known limitation**` note has been added to §5 pointing at items 4, 23 and 24, so
+the doc no longer presents the bug as intended behaviour. Replace the note with the
+proper treatment once item 4 lands.
+
+### [ ] 25. Parser limitations surfaced by the documentation review
+
+All three are now documented in `keywords.md` as limitations, but the underlying
+behaviour is still worth fixing:
+
+- **`ELSET` on `*Element` breaks the model.** `*Element, type=S3, elset=PLATE` parses the
+  type as `s3, elset` and fails with `KeyError: 's3, elset'` when the element stiffness
+  matrix is built. `gen_element` splits on `=` and takes index `[1]`, so any trailing
+  parameter is swallowed into the type. Should either be supported or rejected clearly.
+- **Nested sets are silently dropped.** Naming a previously defined set inside another
+  set's data line is skipped by the bare `except Exception: pass` in `gen_node_set` and
+  `gen_element_set`. Abaqus supports this.
+- **`elementsets` is parsed but never read.** `model["elementsets"]` and
+  `model["section"]["elementset"]` are both populated and neither is used — the shell
+  section thickness is applied to every element regardless of the set named. Either wire
+  it up or drop the dead parsing.
 
 ---
 

@@ -55,7 +55,7 @@ directly from the load definitions in the `.inp` file and the system is solved f
 **Displacement-driven (non-homogeneous):** Known displacements are prescribed at nodes
 instead of forces. In this case $\{F\}$ is not known directly — it must be computed from
 the prescribed displacements using $\{F\} = [K]\{u_c\}$ before the system can be solved
-for the remaining free displacements. This is handled in `reduce_matrix_new()`.
+for the remaining free displacements. This is handled in `reduce_matrix()`.
 
 ---
 
@@ -83,9 +83,9 @@ DOFs `3u` and `3v`. For a mesh with $n$ nodes the full displacement vector has $
 built in the solver as:
 
 ```python
-for n in range(1, node_count + 1):
-    for displacement in ["u", "v"]:
-        self.node_headings.append(str(n) + displacement)
+self.node_headings = [
+    f"{n}{dof}" for n in range(1, node_count + 1) for dof in ["u", "v"]
+]
 ```
 
 ### Shape Functions
@@ -120,13 +120,17 @@ In fe_solver, element stiffness matrices are computed in `elements.py` and store
 model in `define_element_stiffness()`:
 
 ```python
-cst = elements.element(
-    element_type, x_cord, y_cord, node_list,
-    self.model["elasticity"][0],   # Young's modulus E
-    self.model["elasticity"][1],   # Poisson's ratio ν
+cst = elements.Element(
+    element_data["type"],
+    x_cord,
+    y_cord,
+    node_list,
+    self.model["elasticity"][0],  # Young's modulus E
+    self.model["elasticity"][1],  # Poisson's ratio v
     self.model["section"]["thickness"],
 )
-self.model["elements"][element]["K"] = cst
+
+self.model["elements"][element_number]["K"] = cst
 ```
 
 ### The strain-displacement matrix $[B]$
@@ -212,13 +216,14 @@ self.global_stiffness_matrix = pd.DataFrame(
     index=self.node_headings,
 )
 
-for e in self.model["elements"]:
-    element_stiffness_matrix = self.model["elements"][e]["K"].element_stiffness_matrix
-    for column in element_stiffness_matrix:
-        for index, row in element_stiffness_matrix.iterrows():
-            value = self.global_stiffness_matrix._get_value(index, column) \
-                  + element_stiffness_matrix._get_value(index, column)
-            self.global_stiffness_matrix._set_value(index, column, value)
+for element_number, element_data in self.model["elements"].items():
+    element_stiffness_matrix = element_data["K"].element_stiffness_matrix
+
+    for col in element_stiffness_matrix.columns:
+        for row in element_stiffness_matrix.index:
+            self.global_stiffness_matrix.at[
+                row, col
+            ] += element_stiffness_matrix.at[row, col]
 ```
 
 The element stiffness matrix already carries DOF labels (`1u`, `1v`, `2u`, etc.) matching
@@ -242,29 +247,42 @@ vector $\{u\}$ is initialised with `"*"` for all unknown DOFs. Boundary conditio
 the `"*"` with known values — typically `0.0` for fixed supports, or a prescribed
 non-zero displacement for driven models. Applied forces populate the force vector $\{F\}$.
 
-### Boundary conditions (`define_boundary`)
+### Boundary conditions and loads (`define_boundary_conditions`)
 
-For each boundary condition defined in the `.inp` file, the corresponding DOFs in the
-displacement vector are set to their prescribed values:
+Both boundary conditions and loads are applied by the same helper,
+`assemble_dof_series()`, which walks the definitions parsed from the `.inp` file and
+writes each value into the matching DOF of the target series — `self.displacements` for
+boundary conditions, `self.forces` for loads:
 
 ```python
-self.displacements._set_value(str(n) + disp, self.model["boundary"][boundary][axis])
+def assemble_dof_series(self, series, condition):
+    for ident, dof_values in self.model[condition].items():
+        if isinstance(ident, str) and ident in self.model["nodesets"]:
+            node_list = self.model["nodesets"][ident]
+        else:
+            node_list = [int(ident)]
+
+        for axis, value in dof_values.items():
+            if axis == "1":
+                direction = "u"
+            elif axis == "2":
+                direction = "v"
+            for n in node_list:
+                series.at[f"{n}{direction}"] = value
 ```
 
 Axis `"1"` maps to the $u$ (x-direction) DOF and axis `"2"` maps to the $v$ (y-direction)
-DOF, matching the Abaqus convention used in the `.inp` format.
-
-### Loads (`define_load`)
-
-Applied concentrated forces at nodes populate the force vector in the same way:
-
-```python
-self.forces._set_value(str(n) + disp, self.model["load"][load][axis])
-```
+DOF, matching the Abaqus convention used in the `.inp` format. A definition may name
+either a single node or a node set, which is why the lookup checks `nodesets` first.
 
 If no loads are defined in the `.inp` file, the model is treated as displacement-driven
 and `self.homogeneous_model` is set to `False`. This flag controls how the force vector
 is computed during matrix reduction.
+
+> **Known limitation.** Treating "has a load" and "has a prescribed displacement" as
+> mutually exclusive means a model with *both* silently ignores its prescribed
+> displacements. See items 4, 23 and 24 in [TODO.md](TODO.md) — this section will be
+> rewritten around static condensation when that lands.
 
 ---
 
@@ -312,8 +330,10 @@ $$\{F\} = [K]\{u_c\}$$
 Where $\{u_c\}$ is the full displacement vector with `"*"` entries replaced by `0.0`:
 
 ```python
-displacements[displacements == "*"] = 0.0
-forces = np.dot(global_stiffness_matrix, displacements)
+displacements = np.where(displacements == "*", 0.0, displacements).astype(
+    np.float64
+)
+forces = np.dot(stiffness_matrix, displacements)
 ```
 
 This gives the equivalent nodal forces that would produce the prescribed displacements.
@@ -349,7 +369,8 @@ The goal is to transform $[K_{ff}]$ into an upper triangular matrix by systemati
 eliminating the entries below the diagonal. Working column by column from left to right,
 for each pivot row $i$:
 
-1. Identify the **pivot** — the diagonal entry $K_{ii}$
+1. Apply a **partial pivot** (see below), then identify the **pivot** — the diagonal
+   entry $K_{ii}$
 2. For each row $j$ below the pivot, compute the elimination factor:
 
 $$\text{factor} = \frac{K_{ji}}{K_{ii}}$$
@@ -365,12 +386,15 @@ $$F_j \leftarrow F_j - \text{factor} \times F_i$$
 In code:
 
 ```python
-def forward_elimination_new(self):
+def forward_elimination(self):
     for i in range(len(self.force)):
+        self.partial_pivot(i)
         pivot = self.stiffness[i, i]
         for j in range(i + 1, len(self.force)):
             factor = self.stiffness[j, i] / pivot
-            self.stiffness[j, i:] = self.stiffness[j, i:] - factor * self.stiffness[i, i:]
+            self.stiffness[j, i:] = (
+                self.stiffness[j, i:] - factor * self.stiffness[i, i:]
+            )
             self.force[j] = self.force[j] - factor * self.force[i]
 ```
 
@@ -378,10 +402,28 @@ After forward elimination, the system looks like:
 
 $$\begin{bmatrix} K_{11} & K_{12} & K_{13} \\ 0 & K'_{22} & K'_{23} \\ 0 & 0 & K''_{33} \end{bmatrix} \begin{Bmatrix} u_1 \\ u_2 \\ u_3 \end{Bmatrix} = \begin{Bmatrix} F_1 \\ F'_2 \\ F''_3 \end{Bmatrix}$$
 
-Note the `TODO` comment in the code — a **partial pivot** (swapping rows to place the
-largest value on the diagonal before each elimination step) would improve numerical
-stability for ill-conditioned systems. This is a known limitation of the current
-implementation.
+#### Partial pivoting
+
+The elimination factor divides by the pivot $K_{ii}$. If that diagonal entry is zero the
+division fails outright, and if it is merely very small the factor becomes large and
+amplifies rounding error through every subsequent row — a system that is perfectly
+solvable in exact arithmetic can return nonsense in floating point.
+
+**Partial pivoting** avoids this by swapping row $i$ with whichever row below it has the
+largest absolute value in column $i$, so the division is always by the largest available
+number. The force vector is swapped alongside the stiffness matrix to keep the system
+consistent:
+
+```python
+def partial_pivot(self, i):
+    max_row = np.argmax(np.abs(self.stiffness[i:, i])) + i
+    if max_row != i:
+        self.stiffness[[i, max_row]] = self.stiffness[[max_row, i]]
+        self.force[[i, max_row]] = self.force[[max_row, i]]
+```
+
+Row swapping does not change the solution — it only reorders the equations, which the
+system is indifferent to.
 
 #### Back substitution
 
@@ -395,7 +437,7 @@ $$u_i = \frac{F_i - \sum_{j>i} K_{ij} u_j}{K_{ii}}$$
 In code:
 
 ```python
-def back_subtract_new(self):
+def back_subtract(self):
     self.displacements = np.zeros(len(self.force))
     for i in range(len(self.force) - 1, -1, -1):
         sum_knowns = np.dot(self.stiffness[i, i + 1:], self.displacements[i + 1:])
@@ -411,14 +453,19 @@ vectorised operation.
 The fallback solver uses `numpy.linalg.solve`:
 
 ```python
-displacement_solution = np.linalg.solve(global_stiffness_matrix, forces)
+displacement_solution = np.linalg.solve(
+    self.global_stiffness_matrix_reduced, self.forces_reduced
+)
 ```
+
+Note that it is the **reduced** matrix and force vector that are passed. The full
+$[K]$ is singular, as explained in Section 6, and cannot be solved by either method.
 
 `numpy.linalg.solve` uses **LU decomposition** internally — a more numerically robust
 and computationally efficient approach for large systems. LU decomposition factors
 $[K_{ff}]$ into a lower triangular matrix $[L]$ and an upper triangular matrix $[U]$,
-then solves the two resulting triangular systems. Partial pivoting is applied
-automatically, which is the stability improvement noted as missing in the custom solver.
+then solves the two resulting triangular systems. It applies partial pivoting
+automatically, for the same reasons set out above.
 
 Directly inverting $[K_{ff}]$ with `numpy.linalg.inv` is avoided — while mathematically
 equivalent, explicit inversion is slower and accumulates more floating point error than
@@ -433,8 +480,20 @@ is applied, since the force vector was computed as $[K]\{u_c\}$ and the solved
 displacements represent the response to that loading:
 
 ```python
+def apply_sign_correction(self, displacements):
+    if self.homogeneous_model:
+        return displacements
+    return displacements * -1
+```
+
+The corrected values are then written back into the full displacement vector:
+
+```python
+displacements_corrected = self.apply_sign_correction(displacement_solution)
+displacements = pd.Series(displacements_corrected, index=self.index_reduced)
+
 for index, displacement in displacements.items():
-    self.displacements._set_value(index, displacement * homogeneous_correction)
+    self.displacements.at[index] = displacement
 ```
 
 ---
@@ -452,7 +511,7 @@ displacement vector:
 ```python
 for node in node_list:
     for disp in ["u", "v"]:
-        u[count] = self.displacements[str(node) + disp]
+        u[count] = self.displacements[f"{node}{disp}"]
 ```
 
 The in-plane stresses are then computed directly:
@@ -484,17 +543,23 @@ The angle of the principal stress plane relative to the $x$ axis is:
 $$\theta = -\frac{1}{2} \arctan\left(\frac{2\tau_{xy}}{\sigma_{xx} - \sigma_{yy}}\right)$$
 
 This angle is used to decompose the principal stress into $x$ and $y$ components for
-plotting on the deformed mesh. The special case $\sigma_{xx} = \sigma_{yy}$ is handled
-explicitly to avoid division by zero:
+plotting on the deformed mesh.
+
+Written as a single-argument $\arctan$ the expression divides by
+$\sigma_{xx} - \sigma_{yy}$, which is zero whenever the two normal stresses are equal —
+a common state, not an exotic one. The solver uses the two-argument form `atan2`
+instead, which takes numerator and denominator separately and so handles that case
+natively, with no special-casing required:
 
 ```python
-if Sx == Sy:
-    angle = 0
-    opp = 0
-    adj = s1
-else:
-    angle = -0.5 * m.atan((2 * Sxy) / (Sx - Sy))
+angle = -0.5 * m.atan2(2 * Sxy, Sx - Sy)
+opp = m.sin(angle) * s1
+adj = m.cos(angle) * s1
 ```
+
+`atan2` also resolves the correct quadrant, which a single-argument $\arctan$ cannot —
+it returns angles only in the range $\pm 90°$ and so loses the sign information needed
+to orient the principal stress vectors correctly.
 
 ### Von Mises stress (`compute_mises_stress`)
 
@@ -532,9 +597,9 @@ discontinuities and improves accuracy, particularly at stress concentrations.
 |---|---|---|
 | Build $[K^e]$ for each element | `define_element_stiffness()` | $[K^e] = t \cdot A \cdot [B]^T[D][B]$ |
 | Assemble $[K]$ | `define_global_stiffness()` | $[K] = \sum [K^e]$ |
-| Apply boundary conditions | `define_boundary()` | Populate $\{u_c\}$ |
-| Apply loads | `define_load()` | Populate $\{F\}$ |
-| Reduce system | `reduce_matrix_new()` | Extract $[K_{ff}]$ and $\{F_f\}$ using active mask |
+| Apply boundary conditions | `define_boundary_conditions()` | Populate $\{u_c\}$ |
+| Apply loads | `assemble_dof_series()` | Populate $\{F\}$ |
+| Reduce system | `reduce_matrix()` | Extract $[K_{ff}]$ and $\{F_f\}$ using active mask |
 | Solve | `compute_displacements()` | $[K_{ff}]\{u_f\} = \{F_f\}$ |
 | In-plane stress | `compute_normal_stress()` | $\{\sigma\} = [D][B]\{u^e\}$ |
 | Principal stress | `compute_principal_stress()` | $\sigma_{1,2} = \frac{\sigma_{xx}+\sigma_{yy}}{2} \pm \sqrt{(\frac{\sigma_{xx}-\sigma_{yy}}{2})^2 + \tau_{xy}^2}$ |

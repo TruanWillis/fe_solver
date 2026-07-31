@@ -97,6 +97,8 @@ pytest
 
 - [Keyword Reference](docs/keywords.md) — full reference for `.inp` file keywords
 - [FEA Theory](docs/theory.md) — explanation of the finite element method as implemented in FEsolver
+- [Roadmap](docs/ROADMAP.md) — planned direction and phasing
+- [Work Items](docs/TODO.md) — known issues and open work
 
 ---
 
@@ -112,7 +114,7 @@ pytest
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+MIT License.
 
 ---
 
