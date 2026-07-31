@@ -259,10 +259,10 @@ analytical answer exactly:
 
 | Quantity | Analytical | FEsolver |
 |---|---|---|
-| $\sigma_{yy}$ | 100 MPa | 100.0 |
-| $\sigma_{xx}$, $\tau_{xy}$ | 0 | 0.0 |
-| $v$ at top edge | 0.00476190 mm | 0.004761904761904762 |
-| $u$ at right edge | −0.00142857 mm | −0.0014285714285714286 |
+| σyy | 100 MPa | 100.0 |
+| σxx, τxy | 0 | 0.0 |
+| v at top edge | 0.00476190 mm | 0.004761904761904762 |
+| u at right edge | −0.00142857 mm | −0.0014285714285714286 |
 | Total reaction | −2000 N | −2000.0 |
 
 Refining to four elements (centre node at 5,5) leaves the answer unchanged — 100.0 MPa in
@@ -305,7 +305,7 @@ because they need a decision or depend on pending code changes.
 also absent from the Section 9 summary table, which otherwise maps one row per solver
 function.
 
-Needs new derivation content — reactions as $\{R\} = [K]\{u\} - \{F\}$, why they are
+Needs new derivation content — reactions as `{R} = [K]{u} - {F}`, why they are
 recovered only at constrained DOFs, and what a residual check is actually testing.
 
 **Blocked on item 3.** Writing this now would document a residual check that validates
@@ -361,11 +361,11 @@ adj = m.cos(angle) * s1
 component. Two errors compound:
 
 1. The sign on `angle` should be positive — the standard result is
-   $\theta_p = \tfrac{1}{2}\arctan_2(2\tau_{xy},\ \sigma_{xx}-\sigma_{yy})$.
-2. With the vector taken as $(x, y)$, the components should be $(\cos\theta, \sin\theta)$.
-   The code supplies $(\sin\theta, \cos\theta)$ — swapped.
+   `θp = ½atan2(2τxy, σxx-σyy)`.
+2. With the vector taken as `(x, y)`, the components should be `(cosθ, sinθ)`.
+   The code supplies `(sinθ, cosθ)` — swapped.
 
-Net effect is $(-\sin\theta, \cos\theta)$ where $(\cos\theta, \sin\theta)$ is wanted, which
+Net effect is `(-sinθ, cosθ)` where `(cosθ, sinθ)` is wanted, which
 is exactly a 90° rotation. Verified against the analytical principal direction across four
 stress states:
 

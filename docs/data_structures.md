@@ -108,7 +108,7 @@ model at `model["elements"][n]["K"]`.
 | `area` | `float` | Element area. **Signed** — negative for clockwise nodes (TODO 6) |
 | `B` | `ndarray` `(3, 6)` | Strain-displacement matrix |
 | `D` | `ndarray` `(3, 3)` | Stress-strain matrix |
-| `element_stiffness_matrix` | `DataFrame` `(6, 6)` | $[K^e]$, indexed by DOF label |
+| `element_stiffness_matrix` | `DataFrame` `(6, 6)` | `[Kᵉ]`, indexed by DOF label |
 
 `element_stiffness_matrix` is the only pandas object here, and it is pandas specifically
 so it can carry DOF labels into assembly.
@@ -124,14 +124,14 @@ looking at when stepping through in a debugger.
 |---|---|---|
 | `node_headings` | `[str]` | All DOF labels in order — `["1u", "1v", …]` |
 | `node_index` / `element_index` | `[str]` | Row labels for results — `["n1", …]` / `["e1", …]` |
-| `global_stiffness_matrix` | `DataFrame` `(dof, dof)` | $[K]$, labelled both axes |
+| `global_stiffness_matrix` | `DataFrame` `(dof, dof)` | `[K]`, labelled both axes |
 | `global_stiffness_matrix_save` | `DataFrame` | Which elements contributed to each entry, as text. Only when `save_matrix` is on |
-| `global_stiffness_matrix_reduced` | `ndarray` | $[K_{ff}]$ — free DOFs only |
-| `forces_reduced` | `ndarray` | $\{F_f\}$ |
+| `global_stiffness_matrix_reduced` | `ndarray` | `[K_ff]` — free DOFs only |
+| `forces_reduced` | `ndarray` | `{F_f}` |
 | `index_reduced` | `ndarray` of `str` | DOF labels surviving reduction |
 | `displacements` | `Series` | Full displacement vector, indexed by DOF label |
 | `forces` | `Series` → `ndarray` | Full force vector |
-| `stress_normal` | `DataFrame` | Per-element $\sigma_{xx}, \sigma_{yy}, \tau_{xy}$ |
+| `stress_normal` | `DataFrame` | Per-element `σxx, σyy, τxy` |
 | `results` | `dict` | The output structure, below |
 
 ### Two traps
@@ -161,7 +161,7 @@ results = {
 
 | Key | Name | Quantity | Row index | Columns |
 |---|---|---|---|---|
-| `node` → `U` | Displacements | $u$, $v$ per node | `n1`, `n2`, … | `u`, `v` |
+| `node` → `U` | Displacements | u, v per node | `n1`, `n2`, … | `u`, `v` |
 | `node` → `RF` | Reaction Force | Nodal reactions | `n1`, `n2`, … | `u`, `v` |
 | `element` → `S` | Normal Stress | In-plane stress | `e1`, `e2`, … | `s1`, `s2`, `s12` |
 | `element` → `SP` | Stress Principal | Principal stress | `e1`, `e2`, … | `s_max`, `s_min`, `s_shear`, `a`, `opp`, `adj` |
@@ -169,7 +169,7 @@ results = {
 
 The names mirror Abaqus field output identifiers so that anyone who has used it can
 predict where to look. Note that `S` columns are named `s1`/`s2`/`s12` but hold
-$\sigma_{xx}$, $\sigma_{yy}$ and $\tau_{xy}$ — they are *not* principal stresses, despite
+σxx, σyy and τxy — they are *not* principal stresses, despite
 the naming. Principal values live under `SP`.
 
 ### FieldOutputs

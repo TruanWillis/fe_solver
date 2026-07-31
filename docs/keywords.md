@@ -334,7 +334,7 @@ First line:
     Shell thickness.
 
 This data line is **required** — the thickness is used directly in the element stiffness
-calculation, $[K^e] = t \cdot A \cdot [B]^T [D][B]$. Abaqus/CAE writes a second value on
+calculation, `[Kᵉ] = t · A · [B]ᵀ [D][B]`. Abaqus/CAE writes a second value on
 this line (the number of integration points through the thickness); it is ignored.
 
 [Back To The Top](#keywords)
