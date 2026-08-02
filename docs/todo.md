@@ -10,9 +10,13 @@ Legend: `[ ]` open · `[x]` done · `[~]` in progress
 
 ## P0 — Blocking
 
-### [ ] 1. `plot.py` / `gui.py` not migrated to `FieldOutputs`
+### [x] 1. `plot.py` / `gui.py` not migrated to `FieldOutputs`
 
-The "Plot results" button fails on every model on `develop`.
+**Closed 2026-08-02.** All three call sites now read `results`, and plotting works on
+every example model. `gui.py:239` was given the same `.abs().max().max()` treatment.
+Remaining pre-migration reads are tracked separately as item 28.
+
+The "Plot results" button failed on every model on `develop`.
 
 | File | Line | Broken reference | Should be |
 |---|---|---|---|
@@ -20,17 +24,16 @@ The "Plot results" button fails on every model on `develop`.
 | `fe_solver/gui/plot.py` | 61-63 | `solution.stress_principal` | `solution.results["element"]["SP"].data` |
 | `fe_solver/gui/gui.py` | 238 | `float(DataFrame.max())` | `float(df.abs().max().max())` |
 
-Re-verified 2026-08-02. `plot.py:19` raises
-`AttributeError: 'Solver' object has no attribute 'stress_mises'` — the Solver exposes
-only `results`, holding `element: [S, SP, SM]` and `node: [U, RF]`. `gui.py:245` wraps the
-call in `except Exception`, so it surfaces as an "Error plotting result" log line rather
-than a traceback.
+`plot.py:19` raised `AttributeError: 'Solver' object has no attribute 'stress_mises'` —
+the Solver exposes only `results`, holding `element: [S, SP, SM]` and `node: [U, RF]`.
+`gui.py:245` wraps the call in `except Exception`, so it surfaced as an "Error plotting
+result" log line rather than a traceback.
 
 Three points of detail:
 
-- **`gui.py:239` does not currently fail.** `SM.data` is single-column, so
-  `float(df.max())` receives a one-element Series, which pandas 1.5.3 still converts.
-  Deprecated, and breaks on pandas 2.x.
+- **`gui.py:239` did not fail.** `SM.data` is single-column, so `float(df.max())`
+  received a one-element Series, which pandas 1.5.3 still converts. Deprecated, and would
+  have broken on pandas 2.x — fixed alongside 238.
 - **The `.abs()` change is latent.** Signed and absolute maxima are identical on all four
   current models, so nothing exercises it:
 
@@ -42,9 +45,7 @@ Three points of detail:
   ```
 
   A model in compression would report the wrong number.
-- **The label disagrees with the plot.** `gui.py` logs "Max displacement" but reports the
-  largest *component*; `plot.py:23-25` builds `√(u² + v²)` and titles the contour
-  "U [Magnitude]".
+- **The label disagrees with the plot** — see item 30.
 
 **Verify:**
 
@@ -59,32 +60,33 @@ s = solver.Solver(m, True, False, False, Path(''))
 plot.plot_results(m, s, 2, 'x', False)"
 ```
 
-**Note:** the CHANGELOG entry for 0.2.3 already claims this is done. Correct the entry
-or finish the work before release.
+### [~] 2. `test_stress_inplane_3` fails
 
-### [ ] 2. Two tests fail on **both** branches
+**Narrowed 2026-08-02 by item 5, not closed.**
 
 ```
-FAILED tests/test_solver.py::test_stress_inplane_3 - assert 160.5 == 162.5
-FAILED tests/test_solver.py::test_stress_mises_3   - assert 174.5 == 175.0
+FAILED tests/test_solver.py::test_stress_inplane_3 - assert 162.3 == 162.5
 ```
 
-Not a `develop` regression — `main` fails identically. About 1.2% off.
+Suite is now 1 failed, 11 passed. `test_stress_mises_3` went green with item 5.
 
-**Leading hypothesis:** `tests/fixtures/test_input_3.inp` defines both `_PICKEDSET9`
-(nodes 2,3,6) and `_PickedSet9` (nodes 3,4,8). Abaqus set names are case-insensitive;
-`model.py` uses case-sensitive dict keys, so we get two sets where Abaqus has one.
-
-Experiment run — element `e2`, component `s1` (expected `162.464`):
+The original cause was confirmed: `tests/fixtures/test_input_3.inp` defines both
+`_PICKEDSET9` (nodes 2,3,6) and `_PickedSet9` (nodes 3,4,8), which Abaqus treats as one
+set and `model.py` treated as two. Element `e2`, component `s1`, expected `162.464`:
 
 | `_PickedSet9` resolved as | result |
 |---|---|
-| current, `[3,4,8]` | `160.490` |
+| before item 5, `[3,4,8]` | `160.490` |
 | first definition wins, `[2,3,6]` | `-18.177` |
-| union, `[2,3,4,6,8]` | `162.326` |
+| union, `[2,3,4,6,8]` — **now live** | `162.326` |
 
-Union closes most of the gap but not all of it — fix item 5 first, then re-check whether
-a second cause remains.
+So the set collision accounted for most of the 1.2% error but not the last 0.08%. A
+second cause remains and is **not yet identified**. It is no longer a parsing problem —
+the model now matches what Abaqus would build.
+
+Where to look next: whether `162.464` was itself produced by a solver with a known bug, or
+whether the discrepancy is in the stress recovery. Items 4 and 6 are the nearest
+candidates.
 
 ---
 
@@ -155,13 +157,31 @@ rhs = forces[mask] - (stiffness_matrix @ d_prescribed)[mask]
       *homogeneous* means in BC terminology)
 - [ ] Cross-check `docs/theory.md` §5–6 still matches the code
 
-### [ ] 5. Case-sensitive set names diverge from Abaqus
+### [x] 5. Case-sensitive set names diverge from Abaqus
 
-`fe_solver/core/model.py` — `gen_node_set`, `gen_element_set`, and the lookups in
-`gen_solver_maps` / `solver.assemble_dof_series`.
+**Closed 2026-08-02.** Set and material names are lowercased at parse time in
+`gen_node_set`, `gen_element_set`, `gen_shell_section`, `gen_material`, `gen_boundary` and
+`gen_load`, so both sides of every lookup agree.
 
-Abaqus stores set names uppercase and matches case-insensitively. Uppercase set names at
-parse time and at every lookup site. Blocks item 2.
+Lowercase rather than Abaqus's uppercase: the fix only needs *a* canonical case, and the
+parser already lowercases element types (`model.py:57`) and keywords (`:286`). Consistency
+within the model won over fidelity to Abaqus's internal storage, which is not user-facing.
+
+A second change was needed alongside it. `gen_node_set` and `gen_element_set` did
+`self.model["nodesets"][set_name] = []` unconditionally, so once names collapsed the second
+definition wiped the first. They now initialise only on first sight and append, matching
+Abaqus's accumulate-on-repeat behaviour, with a duplicate guard:
+
+```
+_pickedset9 -> [2, 3, 6, 4, 8]        # was _PICKEDSET9 [2,3,6] + _PickedSet9 [3,4,8]
+```
+
+Test fixtures 1-3 were regenerated. Equivalence was checked first — each parsed model was
+identical to the previously accepted fixture once case-folded, so nothing but case and the
+intended merge changed.
+
+Partially unblocked item 2: `test_stress_mises_3` now passes; `test_stress_inplane_3`
+narrowed from 160.5 to 162.3 but still fails.
 
 ### [ ] 6. Clockwise elements produce a negative-definite stiffness matrix
 
@@ -196,9 +216,12 @@ produces numbers. Let it raise.
 retains its value from the previous loop iteration and the BC lands on the wrong DOF.
 Add `else: continue` or raise.
 
-### [ ] 10. `plot.py` mutates the model
+### [x] 10. `plot.py` mutates the model
 
-`fe_solver/gui/plot.py:42-44` does `element_nodes[i] = element_nodes[i] - 1` in place on
+**Closed 2026-08-02.** `.copy()` on the connectivity list, so the subtraction writes into
+a copy. Verified: three consecutive plots leave `model["elements"]` unchanged.
+
+`fe_solver/gui/plot.py:42-44` did `element_nodes[i] = element_nodes[i] - 1` in place on
 `model["elements"][e]["nodes"]`. Plot twice without regenerating and every element's
 connectivity shifts by another one. Build a new list.
 
@@ -242,19 +265,158 @@ string/float mixing throughout. Use `np.nan` in a float array, or lean on the ex
 (`solver.py:264-265`). Works and reads well — which counts for a lot here — but a tuple
 index would be equally readable and non-parsing. Low priority.
 
-### [ ] 16. Remove dead code
+### [x] 16. Remove dead code
+
+**Closed 2026-08-02.** `progress_bar.py` deleted and the unused `os` import removed from
+`model.py`; no references remain and all modules still import. The commented-out
+matplotlib import at `solver.py:11` was left as-is, which the CHANGELOG wording covers.
 
 - `fe_solver/gui/progress_bar.py` — unwired prototype calling `tk.Tk()` and `mainloop()`
   at module scope; **importing it hangs**
 - `fe_solver/core/solver.py:11` — commented-out matplotlib import
 - `fe_solver/core/model.py` — `os` imported unused
 
+### [ ] 28. Complete the `FieldOutputs` migration
+
+Added 2026-08-02. Item 1 is the minimum fix — repoint the two broken call sites so the GUI
+works. This item is the rest: make `results` the single way anything outside the solve
+reads a result.
+
+**Reporting reads that still use pre-migration attributes:**
+
+| File | Line | Reads | Field output holding the same data |
+|---|---|---|---|
+| `fe_solver/gui/plot.py` | 20 | `solution.displacements.tolist()` | `results["node"]["U"]` |
+| `fe_solver/core/solver.py` | 442 | `pp.pprint(s.displacements)` | `results["node"]["U"]` |
+| `fe_solver/core/solver.py` | 444 | `s.stress_normal["s1"]["e8"]` | `results["element"]["S"]` |
+
+`U.data.to_numpy(float).ravel()` reproduces `displacements.tolist()` exactly — verified on
+`test_input_1` and `test_input_2` — and is genuine `float` rather than `object` dtype, so
+it survives item 14.
+
+**`self.stress_normal` and `results["element"]["S"].data` are the same object.**
+`solver.py:312` passes the DataFrame into `FieldOutputs` without copying:
+
+```bash
+python -c "
+from pathlib import Path
+from fe_solver.core import model, solver
+m = model.call_gen_function(model.load_input('tests/fixtures/test_input_1.inp'))
+s = solver.Solver(m, True, False, False, Path(''))
+print(s.results['element']['S'].data is s.stress_normal)   # True
+s.stress_normal.loc['e1','s1'] = -999.0
+print(s.results['element']['S'].data.loc['e1','s1'])       # -999.0
+"
+```
+
+Writing through either name mutates the published result. `compute_principal_stress` and
+`compute_mises_stress` then iterate `self.stress_normal` (`:369`, `:398`) to derive `SP`
+and `SM`, so a stray write to `S` silently changes them too. Either copy on construction
+or drop the attribute and read `results["element"]["S"].data`.
+
+**Two things that are not in scope:**
+
+- **`self.displacements` during the solve is legitimate working state**, not a duplicate.
+  It is the vector boundary conditions are written into (`:178`), reduced (`:217`) and
+  solved back into (`:257`) before `U` is built from it at `:262-268`. Only reads *after*
+  the solve should move to `U`.
+- **`direct_solver.py:56-57,82` has its own `self.displacements`** — a local solution
+  vector on `DirectSolver`, unrelated to `Solver`. Leave it.
+
+**Exit criteria:** nothing outside `fe_solver/core/solver.py` reads a result except through
+`results`, and no field output aliases a mutable solver attribute.
+
+### [ ] 30. "Max displacement" in the GUI log is a component, not a magnitude
+
+Added 2026-08-02. `gui.py:238` logs "Max displacement" but reports the largest single
+component of `U`. The contour plot it sits above is titled "U [Magnitude]" and shows
+`√(u² + v²)` — built in `plot.py:23-25`. Two different quantities under one name.
+
+The gap is not academic:
+
+```
+worked_example.inp                component=4.761905e-03  magnitude=4.971575e-03   4.2%
+plate_simple_load.inp             component=4.335009e+00  magnitude=6.130628e+00  29.3%
+plate_hole_disp_refined_mesh.inp  component=2.000000e+00  magnitude=2.005802e+00   0.3%
+```
+
+`plate_simple_load.inp` reports a number 29% below the peak displacement shown in the
+plot beside it.
+
+Decide which the log line means, then make it say so:
+
+- **Magnitude**, to match the plot — `np.hypot(U[:,0], U[:,1]).max()` on
+  `results["node"]["U"].data.to_numpy(float)`. `plot.py:22-25` already computes this list;
+  the value wanted is its max.
+- **Component**, if the intent is the largest DOF value — then rename the label, e.g.
+  "Max nodal displacement (component)".
+
+Separate from the `TypeError` at the same line (item 1), which is about `float()` on a
+two-column DataFrame. Fixing that alone leaves this wrong.
+
+### [ ] 29. `main.py` sits outside the installable package
+
+Added 2026-08-02. `main.py` is at the repo root, so `pip install -e ".[dev]"` installs
+`fe_solver` but not the launcher. Anyone installing the package without cloning gets the
+solver with no way to start the GUI. It resolves today only because the working directory
+is on `sys.path`:
+
+```
+fe_solver package: .../fe_solver/fe_solver/__init__.py
+main module      : origin='.../fe_solver/main.py'
+```
+
+There is no `[project.scripts]` entry point, so `python main.py` from the repo root is the
+only route.
+
+**Conventional layout** — move the launcher into the package:
+
+```
+fe_solver/app.py          # load_user_config, APP_CONFIG, main()
+```
+
+```toml
+[project.scripts]
+fesolver = "fe_solver.app:main"
+```
+
+`fesolver` then works from anywhere. Adding `fe_solver/__main__.py` calling the same
+`main()` also gives `python -m fe_solver`, matching the existing
+`python -m fe_solver.core.solver` dev harness. A two-line `main.py` at the root that calls
+`fe_solver.app.main()` keeps `python main.py` working if that stays the documented entry.
+
+**Two decisions this forces:**
+
+- **Where `config_user.json` lives.** `main.py:31` resolves it from `__file__`, so it
+  currently lands at the repo root. Move the launcher into the package and the config
+  follows it into `site-packages`, which is wrong for an installed tool. It wants the
+  working directory or a platform config directory instead.
+- **`os.path` vs pathlib.** The 0.2.1 CHANGELOG entry claims "File paths handled by
+  pathlib" and the rest of the codebase does. `main.py` still uses `os.path` in both
+  places.
+
+Not blocking 0.2.3. The config path is the only real work; the rest is a move and four
+lines of `pyproject.toml`.
+
 ### [ ] 17. Housekeeping
 
-- [ ] Version mismatch: `pyproject.toml` says `0.2.1`, `CHANGELOG.md` says `0.2.3`
-- [ ] Add an MIT `LICENSE` file. The dead link has been removed from `README.md`, which
-      now states the licence without linking — restore the link once the file exists.
-      `pyproject.toml` declares no licence either.
+- [ ] **Version drift across four places.** Re-checked 2026-08-02:
+
+      ```
+      installed metadata   0.2.0     ← what version("fe_solver") returns
+      pyproject.toml       0.2.1
+      v0.2.2 tag           0.2.1     (bump missed at that release)
+      CHANGELOG.md         0.2.3
+      ```
+
+      `main.py:24` passes `version("fe_solver")` into `app_config` and `gui.py:45` puts it
+      in the window title, so **the GUI currently reads "FEsolver 0.2.0"**. Editable
+      installs cache the metadata at install time — bumping `pyproject.toml` alone will
+      not change what the window shows without a reinstall.
+- [x] Add an MIT `LICENSE` file. Done 2026-08-02 — `LICENSE` added, `README.md` links to
+      it again, and `pyproject.toml` declares `license = "MIT"` with
+      `license-files = ["LICENSE"]`. Verified in a built wheel:
+      `License-Expression: MIT`, `License-File: LICENSE`, file present in the archive.
 - [ ] `solver.py:437` — `__main__` shadows the `model` module with the model dict
 
 ---

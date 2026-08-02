@@ -10,9 +10,9 @@ Abaqus-compatible. See [theory.md](theory.md) for what the solver does with thes
 - A keyword's data lines are every line following it up to the next `*`.
 - **Keywords not listed below are skipped silently** — `*Part`, `*Assembly`, `*Step`,
   `*Output` and the rest of what Abaqus/CAE writes. This is why CAE files read directly.
-- Keyword names are matched case-insensitively. **Set names are case-sensitive**, so
-  `_PickedSet9` and `_PICKEDSET9` are two different sets where Abaqus has one. See item 5
-  in [todo.md](todo.md).
+- Keyword, set and material names are all matched case-insensitively. Names are
+  lowercased when parsed, so `_PickedSet9` and `_PICKEDSET9` are one set, as in Abaqus.
+  Defining the same name twice adds to the set rather than replacing it.
 
 | Keyword | Purpose |
 |---|---|
@@ -188,8 +188,8 @@ Last node in set
 Increment (default 1)
 ```
 
-> **Set names are case-sensitive.** `_PickedSet9` and `_PICKEDSET9` are treated as separate
-> sets; Abaqus treats them as one. See item 5 in [todo.md](todo.md).
+> **Set names are case-insensitive.** `_PickedSet9` and `_PICKEDSET9` are the same set, as
+> in Abaqus. Repeating a name adds its nodes to the existing set rather than replacing it.
 
 [Back to top](#keywords)
 
