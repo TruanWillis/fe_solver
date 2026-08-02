@@ -8,7 +8,23 @@ from tabulate import tabulate
 
 from fe_solver.core import direct_solver, elements, model
 
-# import matplotlib.pyplot as plt
+
+class FieldOutputs:
+    def __init__(self, name, description, field_type, data):
+        self.name = name
+        self.description = description
+        self.field_type = field_type
+        self.data = data
+        self.components = list(data.columns)
+            
+    def __repr__(self):
+        return (
+            f"FieldOutput("
+            f"name='{self.name}', "
+            f"type='{self.field_type}', "
+            f"components={self.components}, "
+            f"size={len(self.data)})"
+        )
 
 
 class Solver:
@@ -41,6 +57,7 @@ class Solver:
         self.fe_solver = fe_solver
         self.save_matrix = save_matrix
         self.out_dir = out_dir / "outputs"
+
         if self.save_matrix:
             Path(self.out_dir).mkdir(parents=True, exist_ok=True)
 
@@ -59,10 +76,16 @@ class Solver:
             f"{n}{dof}" for n in range(1, node_count + 1) for dof in ["u", "v"]
         ]
 
-        self.element_index = [f"e{element}" for element in self.model["elements"]]
+        self.element_numbers = [element for element in sorted(self.model["elements"].keys())]
+        self.element_index = [f"e{element}" for element in self.element_numbers]
+
+        self.node_numbers = [node for node in sorted(self.model["nodes"].keys())]
+        self.node_index = [f"n{node}" for node in self.node_numbers]
 
         self.forces = pd.Series(np.zeros(self.dof), index=self.node_headings)
         self.displacements = pd.Series(["*"] * self.dof, index=self.node_headings)
+
+        self.results = {"element": {}, "node": {}}
 
         self.run(print_head)
 
@@ -76,6 +99,7 @@ class Solver:
         self.define_boundary_conditions()
         self.reduce_matrix()
         self.compute_displacements()
+        self.compute_reaction_forces()
         self.compute_normal_stress()
         self.compute_principal_stress()
         self.compute_mises_stress()
@@ -95,7 +119,7 @@ class Solver:
             x_cord = [self.model["nodes"][node][0] for node in node_list]
             y_cord = [self.model["nodes"][node][1] for node in node_list]
 
-            cst = elements.element(
+            cst = elements.Element(
                 element_data["type"],
                 x_cord,
                 y_cord,
@@ -149,10 +173,6 @@ class Solver:
         """
         Updates displacement and forces dataSeries with known boundary conditions.
         """
-
-        print(self.displacements)
-        print(self.forces)
-
         self.assemble_dof_series(self.displacements, "boundary")
 
         if self.save_matrix:
@@ -163,9 +183,6 @@ class Solver:
             self.homogeneous_model = False
         else:
             self.assemble_dof_series(self.forces, "load")
-
-        print(self.displacements)
-        print(self.forces)
 
     def assemble_dof_series(self, series, condition):
         """
@@ -230,11 +247,25 @@ class Solver:
                 self.global_stiffness_matrix_reduced, self.forces_reduced
             )
 
-        displacements = pd.Series(displacement_solution, index=self.index_reduced)
-        displacements_corrected = self.apply_sign_correction(displacements)
+        displacements_corrected = self.apply_sign_correction(displacement_solution)
 
-        for index, displacement in displacements_corrected.items():
+        displacements = pd.Series(displacements_corrected, index=self.index_reduced)
+
+        for index, displacement in displacements.items():
             self.displacements.at[index] = displacement
+
+        data = pd.DataFrame(
+            index=self.node_index, columns=["u", "v"]
+        )
+
+        for index, displacement in self.displacements.items():
+            node = f"n{index[:-1]}"
+            dof = f"{index[-1]}"
+            data.at[node, dof] = displacement
+
+        self.results["node"]["U"] = FieldOutputs(
+            "U", "Displacements", "node", data
+        )
 
     def apply_sign_correction(self, displacements):
         """
@@ -275,6 +306,52 @@ class Solver:
                 normal_stress[2],
             ]
 
+        self.results["element"]["S"] = FieldOutputs(
+            "S", "Normal Stress", "element", self.stress_normal
+        )
+
+    def compute_reaction_forces(self):
+        """
+        Calculated the reaction force in all nodes to compute the model residuals for
+        validation. Reduces reaction forces to contrained node using active mask and
+        outputs as dataFrame.
+        """
+        stiffness_matrix = self.global_stiffness_matrix.to_numpy(dtype=np.float64)
+        displacements = self.displacements.to_numpy(dtype=np.float64)
+
+        reaction_forces = np.dot(stiffness_matrix, displacements) - self.forces
+        reaction_forces = pd.Series(reaction_forces, index=self.node_headings)
+
+        residual = abs(reaction_forces.sum() + self.forces.sum())
+        print(f"Residuals: {residual:.2e}")
+        if residual < 1e-6:
+            print("PASS: residuals < 1e-6")
+        else:
+            print("WARNING: check model residuals > 1e-6")
+
+        #TODO: Currently all nodal forces are reported, not constrained node.
+
+        # mask = np.array(self.model["active_mask"])
+        # constrained_mask = ~mask
+        # constrained_nodes = np.array(self.node_headings)[constrained_mask]
+        node_index = [f"n{node_number}" for node_number in self.node_numbers]
+
+        reaction_forces_constrained = pd.DataFrame(
+            index=node_index,
+            columns=["u", "v"],
+        )
+
+        for node in self.node_numbers:
+            for dof in ["u", "v"]:
+                label = f"{node}{dof}"
+                reaction_forces_constrained.at[f"n{node}", dof] = (
+                    reaction_forces[label]
+                )
+
+        self.results["node"]["RF"] = FieldOutputs(
+            "RF", "Reaction Force", "node", reaction_forces_constrained
+        )
+
     def compute_principal_stress(self):
         """
         Calculates element principal stresses.
@@ -282,7 +359,7 @@ class Solver:
 
         print("Computing principal stress")
 
-        self.stress_principal = pd.DataFrame(
+        stress_principal = pd.DataFrame(
             index=self.element_index,
             columns=["s_max", "s_min", "s_shear", "a", "opp", "adj"],
         )
@@ -301,7 +378,11 @@ class Solver:
             opp = m.sin(angle) * s1
             adj = m.cos(angle) * s1
 
-            self.stress_principal.loc[index] = [s1, s2, s12, angle, opp, adj]
+            stress_principal.loc[index] = [s1, s2, s12, angle, opp, adj]
+
+        self.results["element"]["SP"] = FieldOutputs(
+            "SP", "Stress Principal", "element", stress_principal
+        )
 
     def compute_mises_stress(self):
         """
@@ -310,7 +391,7 @@ class Solver:
 
         print("Computing von Mises stress")
 
-        self.stress_mises = pd.DataFrame(index=self.element_index, columns=["s_mises"])
+        stress_mises = pd.DataFrame(index=self.element_index, columns=["s_mises"])
 
         for index, row in self.stress_normal.iterrows():
             sigma_1 = row[0]
@@ -320,41 +401,28 @@ class Solver:
             mises = m.sqrt(
                 sigma_1**2 - sigma_1 * sigma_2 + sigma_2**2 + 3 * sigma_12**2
             )
-            self.stress_mises.loc[index] = mises
+            stress_mises.loc[index] = mises
+
+        self.results["element"]["SM"] = FieldOutputs(
+            "SM", "Stress Mises", "element", stress_mises
+        )
 
     def print_results(self):
         """
-        Prints in-plane, principal and mises stress dataFrame heads to
-        terminal.
+        Prints all field output dataFrame heads to terminal.
         """
 
-        print("In-plane stress...")
-        print(
-            tabulate(
-                self.stress_normal.head(),
-                tablefmt="grid",
-                numalign="right",
-                headers=self.stress_normal.columns,
-            )
-        )
-        print("Principal stress...")
-        print(
-            tabulate(
-                self.stress_principal.iloc[:, :3].head(),
-                tablefmt="grid",
-                numalign="right",
-                headers=self.stress_principal.columns[:3],
-            )
-        )
-        print("Mises stress...")
-        print(
-            tabulate(
-                self.stress_mises.head(),
-                tablefmt="grid",
-                numalign="right",
-                headers=self.stress_mises.columns,
-            )
-        )
+        for _, field_outputs in self.results.items():
+            for _, results in field_outputs.items():
+                print(f"{results.description}...")
+                print(
+                    tabulate(
+                        results.data.iloc[:, :3].head(),
+                        tablefmt="grid",
+                        numalign="right",
+                        headers=results.data.columns[:3],
+                    )
+                )
 
 
 if __name__ == "__main__":
@@ -372,3 +440,6 @@ if __name__ == "__main__":
     pp.pprint(s.displacements)
     pp.pprint(s.forces)
     pp.pprint(s.stress_normal["s1"]["e8"])
+    pp.pprint(s.results)
+    pp.pprint(s.results["element"]["S"].data.loc["e1", "s1"])
+    pp.pprint(s.results["element"]["S"].data)

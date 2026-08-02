@@ -1,5 +1,43 @@
 # ChangeLog
 
+## [0.2.3] - 02-08-2026
+### Added
+ - Reaction load outputs added.
+ - Residual check added. Note this check is not yet meaningful, see item 3 in docs/todo.md.
+ - FieldOutputs class added for storing results, using Abaqus field output names
+   (U, RF, S, SP, SM).
+ - docs/ expanded: worked_example.md, data_structures.md, roadmap.md and todo.md added,
+   theory.md rewritten.
+ - examples/worked_example.inp added, a two element patch test used by the worked example.
+ - Documentation site added, MkDocs Material built and published by
+   .github/workflows/docs.yml.
+ - LICENSE added and declared in pyproject.toml.
+
+### Changed
+ - Reaction loads head() print added to solver.py __main__
+ - gui and plot logic updated to handle new FieldOutputs class.
+ - Set and material names are now lowercased at parse time and matched
+   case-insensitively, as Abaqus does. Repeated set names now accumulate into one set
+   rather than the last definition replacing the earlier ones.
+ - Test model fixtures regenerated to match the new set handling.
+ - Equations in docs written as unicode in code blocks rather than LaTeX, so they render
+   anywhere markdown does.
+
+### Fixed
+ - Rogue print statement in plot.py removed
+ - Better alignment with PEP8 
+ - Unused code deleted or commented out. progress_bar.py deleted, unused os import
+   removed from model.py.
+ - Plot results no longer fails. plot.py and gui.py were still reading solver attributes
+   that the FieldOutputs refactor removed.
+ - plot.py no longer decrements element connectivity in place on the model, which
+   corrupted it on every plot and failed on the second.
+
+### Known issues
+ - test_stress_inplane_3 fails, 162.3 against an expected 162.5. Narrowed from 160.5 by
+   the set name fix above but not closed, cause not yet identified. See item 2 in
+   docs/todo.md.
+
 ## [0.2.2] - 18-03-2026
 ### Added
  - Partial pivot function added to direct_solver.

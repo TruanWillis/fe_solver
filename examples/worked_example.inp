@@ -1,0 +1,77 @@
+*Heading
+** Worked example: uniaxial tension of a square plate
+** Walked through step by step in docs/worked_example.md
+**
+** 10 x 10 mm square plate, 2 mm thick, meshed with two S3 elements.
+** Pinned at node 1, roller at node 2, 1000 N pulled upward at nodes 3 and 4.
+** Units: mm, N, MPa
+*Preprint, echo=NO, model=NO, history=NO, contact=NO
+**
+** PARTS
+**
+*Part, name=Plate
+*Node
+      1,           0.,           0.
+      2,          10.,           0.
+      3,          10.,          10.
+      4,           0.,          10.
+*Element, type=S3
+1, 1, 2, 3
+2, 1, 3, 4
+*Nset, nset=AllNodes, generate
+ 1,  4,  1
+*Elset, elset=AllElements, generate
+ 1,  2,  1
+** Section: Section-1
+*Shell Section, elset=AllElements, material=Steel
+2., 5
+*End Part
+**
+** ASSEMBLY
+**
+*Assembly, name=Assembly
+*Instance, name=Plate-1, part=Plate
+*End Instance
+*Nset, nset=Bottom, instance=Plate-1
+ 1, 2
+*Nset, nset=Top, instance=Plate-1
+ 3, 4
+*End Assembly
+**
+** MATERIALS
+**
+*Material, name=Steel
+*Elastic
+210000., 0.3
+**
+** STEP: Step-1
+**
+*Step, name=Step-1, nlgeom=NO
+*Static
+1., 1., 1e-05, 1.
+**
+** BOUNDARY CONDITIONS
+**
+** Name: BC-Pin  Type: Displacement/Rotation
+** Node 1 held in both directions - fixes the plate in space
+*Boundary
+1, 1, 1
+1, 2, 2
+** Name: BC-Roller  Type: Displacement/Rotation
+** Node 2 held vertically only - free to slide in x so the plate can contract
+*Boundary
+2, 2, 2
+**
+** LOADS
+**
+** Name: Load-Tension  Type: Concentrated force
+** 1000 N upward at each top node, 2000 N total
+*Cload
+3, 2, 1000.
+4, 2, 1000.
+**
+** OUTPUT REQUESTS
+**
+*Restart, write, frequency=0
+*Output, field, variable=PRESELECT
+*End Step

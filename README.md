@@ -1,8 +1,8 @@
 # FEsolver
 
 A 2D plane-stress finite element analysis solver written in Python. Models are defined
-using `.inp` text files in a format similar to Simulia Abaqus, making it accessible to
-anyone familiar with commercial FEA software.
+using `.inp` text files in a format similar to Abaqus, making it accessible to anyone
+familiar with commercial FEA software.
 
 FEsolver is intended as a learning tool — the codebase is structured to reflect the
 theoretical steps of the finite element process, and the documentation explains the
@@ -41,7 +41,10 @@ Run the application:
 python main.py
 ```
 
-Example `.inp` files are provided in `examples/`.
+Example `.inp` files are provided in `examples/`. If you are new to the tool, start with
+`examples/worked_example.inp` and follow it through
+[docs/worked_example.md](docs/worked_example.md), which walks the full solution process
+one calculation at a time.
 
 ### Configuration
 
@@ -95,8 +98,20 @@ pytest
 
 ## Documentation
 
-- [Keyword Reference](docs/keywords.md) — full reference for `.inp` file keywords
-- [FEA Theory](docs/theory.md) — explanation of the finite element method as implemented in FEsolver
+**Learning the method**
+
+- [Theory and Process](docs/theory.md) — what FEsolver does at each step and why, from the governing PDEs to stress recovery
+- [Worked Example](docs/worked_example.md) — a two-element model taken by hand from input file to stresses, with every calculation shown
+
+**Reference**
+
+- [Keywords](docs/keywords.md) — the `.inp` keywords FEsolver understands
+- [Data Structures](docs/data_structures.md) — how the code represents a model, from parsed input to results
+
+**Project**
+
+- [Roadmap](docs/roadmap.md) — planned direction and phasing
+- [Work Items](docs/todo.md) — known issues and open work
 
 ---
 
@@ -112,7 +127,7 @@ pytest
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+[MIT License](LICENSE).
 
 ---
 

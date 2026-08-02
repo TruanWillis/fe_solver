@@ -1,217 +1,219 @@
 # Keywords
 
-#### \* BOUNDARY
+Reference for the `.inp` keywords FEsolver understands. The format follows Abaqus so that
+models are familiar, but FEsolver implements only the subset below — it is **not**
+Abaqus-compatible. See [theory.md](theory.md) for what the solver does with these inputs.
 
-Specify boundary conditions. This option is used to prescribe boundary
-conditions at nodes
+## How the input file is read
 
-**Required parameters:**
+- Lines beginning with a single `*` are keywords. Lines beginning with `**` are comments.
+- A keyword's data lines are every line following it up to the next `*`.
+- **Keywords not listed below are skipped silently** — `*Part`, `*Assembly`, `*Step`,
+  `*Output` and the rest of what Abaqus/CAE writes. This is why CAE files read directly.
+- Keyword, set and material names are all matched case-insensitively. Names are
+  lowercased when parsed, so `_PickedSet9` and `_PICKEDSET9` are one set, as in Abaqus.
+  Defining the same name twice adds to the set rather than replacing it.
 
-    None
+| Keyword | Purpose |
+|---|---|
+| [\*BOUNDARY](#boundary) | Prescribe displacement constraints at nodes |
+| [\*CLOAD](#cload) | Apply concentrated forces at nodes |
+| [\*ELASTIC](#elastic) | Define linear elastic moduli |
+| [\*ELEMENT](#element) | Define elements by their nodes |
+| [\*ELSET](#elset) | Assign elements to an element set |
+| [\*MATERIAL](#material) | Begin a material definition |
+| [\*NODE](#node) | Define nodes by their coordinates |
+| [\*NSET](#nset) | Assign nodes to a node set |
+| [\*SHELL SECTION](#shell-section) | Define section thickness and material |
 
-**Optional parameters:**
+---
 
-    None
+## \*BOUNDARY
 
-**Data lines to define boundary:**
+Prescribe boundary conditions at nodes. No parameters.
 
-First line:
+**Data lines** — repeat as necessary:
 
-    Node number or node set label.
-    Degree of freedom to constrained.
-    Degree of freedom to constrained.
-    Boundary value, only required for nonzero boundary condition. 
+```
+Node number or node set label
+First degree of freedom constrained
+Last degree of freedom constrained
+Boundary value (only for a nonzero boundary condition)
+```
 
-Repeat this data line as often as necessary to specify boundary conditions at
-differentdifferent nodes and degrees of freedom.
+DOF `1` is translation in x, `2` is translation in y.
 
-[Back To The Top](#keywords)
+**Limitations** — see item 7 in [todo.md](todo.md):
 
-#### \* CLOAD
+- Only a **single** DOF per data line is applied; the first and last fields must be equal.
+  A range such as `7, 1, 2` is accepted by the parser but **silently ignored**, leaving
+  the model under-constrained.
+- Only DOFs `1` and `2` exist in a 2D plane-stress model. Higher values written by
+  Abaqus/CAE (`3` to `6`) are ignored.
+- `ENCASTRE` and `PINNED` are **not supported** and raise an error. Constrain each DOF
+  explicitly.
 
-Specify concentrated force. This option is used to apply concentrated forces at
-any node in the model.
+[Back to top](#keywords)
 
-**Required parameters:**
+## \*CLOAD
 
-    None
+Apply concentrated forces at nodes. No parameters.
 
-**Optional parameters:**
+**Data lines** — repeat as necessary:
 
-    None
+```
+Node number or node set label
+Degree of freedom
+Load magnitude
+```
 
-**Data lines to define concentrated loads for specific degrees of freedom:**
+DOF `1` is force in x, `2` is force in y.
 
-First line:
+If a node set is named, the magnitude is applied to **every node in the set** — it is not
+divided between them.
 
-    Node number or node set label.
-    Degree of freedom.
+[Back to top](#keywords)
 
-Load magnitude.
+## \*ELASTIC
 
-Repeat this data line as often as necessary to define concentrated loads.
+Define linear elastic moduli. No parameters.
 
-[Back To The Top](#keywords)
+**Data line:**
 
-#### \* ELASTIC  
+```
+Young's modulus, E
+Poisson's ratio
+```
 
-Specify elastic material properties.  This option is used to define linear
-elastic moduli.
+[Back to top](#keywords)
 
-**Required parameters:**
+## \*ELEMENT
 
-    None
+Define elements by giving their nodes.
 
-**Optional parameters:**
+**Required parameter:** `TYPE` — the element type. Only **S3** is available.
 
-    None
+**Data lines** — repeat as necessary:
 
-**Data lines to define isotropic elasticity:**
+```
+Element number
+First node number
+Second node number
+Third node number
+```
 
-First line:
+> **`ELSET` is not supported on this keyword.** `*Element, type=S3, elset=PLATE` causes the
+> type to be read as `s3, elset`, which fails with `KeyError: 's3, elset'` when the element
+> stiffness matrix is built. Define the set separately with [\*ELSET](#elset).
 
-    Young's modulus, E.
-    Poisson's ratio.
+[Back to top](#keywords)
 
-[Back To The Top](#keywords)
+## \*ELSET
 
-#### \* ELEMENT
+Assign elements to an element set.
 
-Define elements by giving their nodes. This option is used to define an element
-directly by specifying its nodes.
+**Required parameter:** `ELSET` — the name of the set.
 
-**Required parameter:**
+**Optional parameter:** `GENERATE` — data lines give a first element, a last element and an
+integer increment; all elements from first to last in those steps are added.
 
-    TYPE
+**Data lines** without `GENERATE` — a list of elements, repeated as necessary.
 
-Set this parameter equal to the element type, currently only **S3** element
-type is available.
+**Data lines** with `GENERATE`:
 
-**Optional parameters:**
+```
+First element in set
+Last element in set
+Increment (default 1)
+```
 
-    ELSET
+> **Nested sets are not supported.** Naming a previously defined element set inside another
+> set's data line is **silently ignored** — only numeric entries are kept. The same applies
+> to [\*NSET](#nset).
 
-Set this parameter equal to the name of the element set to which these elements
-will be assigned.
+[Back to top](#keywords)
 
-**Data lines to define the elements:**
+## \*MATERIAL
 
-First line:
+Begin a material definition.
 
-    Element number.
-    First node number forming the element.
-    Second node number forming the element.
-    Third node number forming the element.
-
-Repeat this set of data lines as often as necessary.
-
-[Back To The Top](#keywords)
-
-#### \* ELSET  
-
-Assign elements to an element set.  This option is used to assign elements to
-an element set.
-
-**Required parameter:**
-
-    ELSET
-
-Set this parameter equal to the name of the element set to which the elements
-will be assigned.
-
-**Optional parameters:**
-
-    GENERATE
-
-If this parameter is included, each data line should give a first element,
-_e1_, a last element, _e2_, and the increment in element numbers between these
-elements, _i_. Then, all elements going from _e1_ to _e2_ in steps of _i_ will
-be added to the set. _i_ must be an integer.
-
-**Data lines if the GENERATE parameter is omitted:**
-
-First line:
-
-    List of elements or element set labels to be assigned to this element set.
-    Only previously defined element sets can be assigned to another element set.
-
-Repeat this data line as often as necessary.
-
-**Data lines if the GENERATE parameter is included:**
-
-First line:
-
-    First element in set.
-    Last element in set.
-    Increment in element numbers between elements in the set. The default is 1.
-
-Repeat this data line as often as necessary.
-
-[Back To The Top](#keywords)
-
-#### \* MATERIAL  
-
-Begin the definition of a material. This option is used to indicate the start
-of a material definition.
-
-**Required parameter:**
-
-    NAME
-
-Set this parameter equal to a label that will be used to refer to the material
-in the element property options. Material names in the same input file must be
+**Required parameter:** `NAME` — the label used to refer to the material. Names must be
 unique.
 
-**Optional parameters:**
+> **Only one material is supported.** The name is recorded but never linked to a section or
+> to elements, and the properties from every [\*ELASTIC](#elastic) block are collected into
+> a single list. If a second material is defined, **all elements silently use the first**.
+> See item 11 in [todo.md](todo.md).
 
-    None
+[Back to top](#keywords)
 
-[Back To The Top](#keywords)
+## \*NODE
 
-#### \* NODE
+Define nodes by their coordinates. No parameters.
 
-Specify nodal coordinates. This option is used to define a node directly by
-specifying its coordinates.
+**Data lines** — repeat as necessary:
 
-**Optional parameters:**
+```
+Node number
+First coordinate
+Second coordinate
+```
 
-    NSET
+A third coordinate may be present — Abaqus/CAE writes one even for 2D models — and is
+ignored. FEsolver is 2D plane-stress only.
 
-Set this parameter equal to the name of the node set to which these nodes will
-be assigned. Node sets created or modified with this option will always be
-sorted.
+> **`NSET` is not supported on this keyword.** `*Node, nset=PLATE` is accepted but the
+> parameter is **silently ignored** — no node set is created. Define the set separately
+> with [\*NSET](#nset).
 
-**Data lines to define the node:**
+[Back to top](#keywords)
 
-First line:
+## \*NSET
 
-    Node number.
-    First coordinate of the node.
-    Second coordinate of the node.
+Assign nodes to a node set. Node sets are how boundary conditions and loads are applied
+to groups of nodes.
 
-Repeat this data line as often as necessary.
+**Required parameter:** `NSET` — the name of the set.
 
-[Back To The Top](#keywords)
+**Optional parameter:** `GENERATE` — data lines give a first node, a last node and an
+integer increment; all nodes from first to last in those steps are added.
 
-#### \* SHELL SECTION  
+**Data lines** without `GENERATE` — a list of nodes, repeated as necessary.
 
-Specify a shell cross-section. This option is used to specify a shell
-cross-section.
+**Data lines** with `GENERATE`:
 
-**Required parameter:**
+```
+First node in set
+Last node in set
+Increment (default 1)
+```
 
-    ELSET
+> **Set names are case-insensitive.** `_PickedSet9` and `_PICKEDSET9` are the same set, as
+> in Abaqus. Repeating a name adds its nodes to the existing set rather than replacing it.
 
-Set this parameter equal to the name of the element set containing the shell
-elements for which the section behavior is being defined.
+[Back to top](#keywords)
 
-    MATERIAL
+## \*SHELL SECTION
 
-Set this parameter equal to the name of the material of which the shell is
-made.
+Define a shell cross-section.
 
-**Optional parameters:**
+**Required parameters:**
 
-    None
+- `ELSET` — the element set the section applies to.
+- `MATERIAL` — the material the shell is made of.
 
-[Back To The Top](#keywords)
+> The element set name is recorded but **not acted on** — the thickness below is applied to
+> *every* element in the model, not just those in the named set. Sets defined with
+> [\*ELSET](#elset) are parsed but never read by the solver.
+
+**Data line** — required:
+
+```
+Shell thickness
+```
+
+Used directly in the element stiffness calculation, `[Kᵉ] = [B]ᵀ[D][B] · A · t`.
+Abaqus/CAE writes a second value on this line (integration points through the thickness);
+it is ignored.
+
+[Back to top](#keywords)

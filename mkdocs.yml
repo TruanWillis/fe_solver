@@ -1,0 +1,43 @@
+site_name: FEsolver
+site_description: 2D plane-stress finite element analysis solver
+repo_url: https://github.com/TruanWillis/fe_solver
+repo_name: TruanWillis/fe_solver
+docs_dir: docs
+
+theme:
+  name: material
+  features:
+    - navigation.top
+    - navigation.tracking
+    - content.code.copy
+    - search.highlight
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - Theory and Process: theory.md
+  - Worked Example: worked_example.md
+  - Keywords: keywords.md
+  - Data Structures: data_structures.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+
+# todo.md and roadmap.md are removed by the build workflow before this runs.
+# See .github/workflows/docs.yml

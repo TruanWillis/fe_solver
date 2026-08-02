@@ -1,5 +1,4 @@
 import json
-import os
 import numpy as np
 import pprint
 import pickle
@@ -19,7 +18,7 @@ keywords = {
 }
 
 
-class generateModel:
+class ModelBuilder:
     def __init__(self):
         """
         Initiates model class object.
@@ -36,27 +35,27 @@ class generateModel:
         self.model["boundary"] = {}
         self.model["load"] = {}
 
-    def strip_input(self, input):
+    def strip_input(self, lines):
         """
         Strips white space from nested list of strings.
 
         Args:
-            input (list): Nested list of strings.
+            lines (list): Nested list of strings.
         """
 
-        output = [value.replace(" ", "") for value in input]
+        output = [value.replace(" ", "") for value in lines]
         return output
 
-    def gen_element(self, input):
+    def gen_element(self, lines):
         """
         Defines elements.
 
         Args:
-            input (list): Nested list of strings.
+            lines (list): Nested list of strings.
         """
 
-        element_type = input[0].split("=")[1].lower()
-        for line in input[1:]:
+        element_type = lines[0].split("=")[1].lower()
+        for line in lines[1:]:
             split_line = line.split(",")
             element = int(split_line[0])
             self.model["elements"][element] = {}
@@ -67,15 +66,15 @@ class generateModel:
             self.model["elements"][element]["type"] = element_type
         self.model["element count"] = int(len(self.model["elements"].keys()))
 
-    def gen_node(self, input):
+    def gen_node(self, lines):
         """
         Defines nodes.
 
         Args:
-            input (list): Nested list of strings.
+            lines (list): Nested list of strings.
         """
 
-        for line in input[1:]:
+        for line in lines[1:]:
             split_line = line.split(",")
             self.model["nodes"][int(split_line[0])] = [
                 float(split_line[1]),
@@ -87,115 +86,121 @@ class generateModel:
         # TODO: Update to 3D when ready
         self.model["dof"] = int(len(self.model["nodes"].keys()) * 2)
 
-    def gen_node_set(self, input):
+    def gen_node_set(self, lines):
         """
         Defines node set.
 
         Args:
-            input (list): Nested list of strings.
+            lines (list): Nested list of strings.
         """
 
-        split_first_line = input[0].split(",")
-        set_name = split_first_line[1].split("=")[1].strip()
-        self.model["nodesets"][set_name] = []
-        for line in input[1:]:
+        split_first_line = lines[0].split(",")
+        set_name = split_first_line[1].split("=")[1].strip().lower()
+        if set_name not in self.model["nodesets"]:
+            self.model["nodesets"][set_name] = []
+        for line in lines[1:]:
             nodes = line.split(",")
-            if "generate" in input[0]:
+            if "generate" in lines[0]:
                 start = int(nodes[0].strip())
                 end = int(nodes[1].strip())
                 inc = int(nodes[2].strip())
                 for node in range(start, end + inc, inc):
-                    self.model["nodesets"][set_name].append(node)
+                    if node not in self.model["nodesets"][set_name]:
+                        self.model["nodesets"][set_name].append(node)
             else:
                 for node in nodes:
                     try:
                         node = int(node.strip())
-                        self.model["nodesets"][set_name].append(node)
+                        if node not in self.model["nodesets"][set_name]:
+                            self.model["nodesets"][set_name].append(node)
                     except Exception:
                         pass
 
-    def gen_element_set(self, input):
+    def gen_element_set(self, lines):
         """
         Defines element set.
 
         Args:
-            input (list): Nested list of strings.
+            lines (list): Nested list of strings.
         """
 
-        split_first_line = input[0].split(",")
-        set_name = split_first_line[1].split("=")[1].strip()
-        self.model["elementsets"][set_name] = []
-        for line in input[1:]:
+        split_first_line = lines[0].split(",")
+        set_name = split_first_line[1].split("=")[1].strip().lower()
+        if set_name not in self.model["elementsets"]:
+            self.model["elementsets"][set_name] = []
+        for line in lines[1:]:
             elements = line.split(",")
-            if "generate" in input[0]:
+            if "generate" in lines[0]:
                 start = int(elements[0].strip())
                 end = int(elements[1].strip())
                 inc = int(elements[2].strip())
                 for element in range(start, end + inc, inc):
-                    self.model["elementsets"][set_name].append(element)
+                    if element not in self.model["elementsets"][set_name]:
+                        self.model["elementsets"][set_name].append(element)
             else:
                 for element in elements:
                     try:
                         element = int(element.strip())
-                        self.model["elementsets"][set_name].append(element)
+                        if element not in self.model["elementsets"][set_name]:
+                            self.model["elementsets"][set_name].append(element)
                     except Exception:
                         pass
 
-    def gen_shell_section(self, input):
+    def gen_shell_section(self, lines):
         """
         Defines shell section properties.
 
         Args:
-            input (list): Nested list of strings.
+            lines (list): Nested list of strings.
         """
 
-        split_first_line = input[0].split(",")
+        split_first_line = lines[0].split(",")
         for item in split_first_line:
             if "elset" in item.lower():
-                self.model["section"]["elementset"] = item.split("=")[1]
+                self.model["section"]["elementset"] = item.split("=")[1].strip().lower()
             elif "material" in item.lower():
-                self.model["section"]["material"] = item.split("=")[1]
-        thickness = float(self.strip_input(input[1].split(","))[0])
+                self.model["section"]["material"] = item.split("=")[1].strip().lower()
+        thickness = float(self.strip_input(lines[1].split(","))[0])
         self.model["section"]["thickness"] = thickness
 
-    def gen_material(self, input):
+    def gen_material(self, lines):
         """
         Defines material name.
 
         Args:
-            input (list): Nested list of strings.
+            lines (list): Nested list of strings.
         """
 
-        material_name = input[0].split("=")[1].strip("\n")
+        material_name = lines[0].split("=")[1].strip().lower()
         self.model["material"][material_name] = {}
 
-    def gen_material_elasticity(self, input):
+    def gen_material_elasticity(self, lines):
         """
         Defines material properties.
 
         Args:
-            input (list): Nested list of strings.
+            lines (list): Nested list of strings.
         """
 
-        for value in input[1].split(","):
+        for value in lines[1].split(","):
             value = float(value.strip().strip("\n"))
             self.model["elasticity"].append(value)
 
-    def gen_boundary(self, input):
+    def gen_boundary(self, lines):
         """
         Defines boundary condition.
 
         Args:
-            input (list): Nested list of strings.
+            lines (list): Nested list of strings.
         """
 
-        for line in input[1:]:
+        for line in lines[1:]:
             values = line.split(",")
             values = self.strip_input(values)
             try:
                 node = int(values[0])
             except Exception:
-                node = values[0]
+                node = values[0].lower()
             if node not in self.model["boundary"]:
                 self.model["boundary"][node] = {}
             if values[1] == values[2]:
@@ -205,21 +210,21 @@ class generateModel:
                     elif len(values) == 4:
                         self.model["boundary"][node][values[1]] = float(values[3])
 
-    def gen_load(self, input):
+    def gen_load(self, lines):
         """
         Defines applied load.
 
         Args:
-            input (list): Nested list of strings.
+            lines (list): Nested list of strings.
         """
 
-        for line in input[1:]:
+        for line in lines[1:]:
             values = line.split(",")
             values = self.strip_input(values)
             try:
                 node = int(values[0])
             except Exception:
-                node = values[0]
+                node = values[0].lower()
             if node not in self.model["load"]:
                 self.model["load"][node] = {}
             if int(values[1]) < 3:
@@ -275,7 +280,7 @@ def call_gen_function(inp_file):
         dict: Model attributes.
     """
 
-    model = generateModel()
+    model = ModelBuilder()
     for line_count, line in enumerate(inp_file):
         if line[0] == "*" and line[1] != "*":
             keyword = line.split("*")[1].split(",")[0].strip("\n").lower()

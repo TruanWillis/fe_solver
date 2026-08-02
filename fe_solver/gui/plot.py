@@ -3,11 +3,6 @@ import math as m
 import matplotlib.pyplot as plt
 import numpy as np
 
-
-def fname(test1, test2):
-    return test1 + test2
-
-
 def plot_results(model, solution, deformation_scale, window_name, plot_matrix):
     """
     Plots displacement, von Mises stress deformed contour plots,
@@ -21,10 +16,7 @@ def plot_results(model, solution, deformation_scale, window_name, plot_matrix):
         window_name (string): Window title for gui and plots
         plot_matrix (boolean): Plots global stiffness matrix heat map.
     """
-
-    print("\n" + "Plotting results...")
-
-    stress_mises = solution.stress_mises["s_mises"].tolist()
+    stress_mises = solution.results["element"]["SM"].data["s_mises"].tolist()
     displacements = solution.displacements.tolist()
 
     displacement_mag = []
@@ -46,7 +38,7 @@ def plot_results(model, solution, deformation_scale, window_name, plot_matrix):
 
     element_list = []
     for element in model["elements"]:
-        element_nodes = model["elements"][element]["nodes"]
+        element_nodes = model["elements"][element]["nodes"].copy()
         for i in range(len(element_nodes)):
             element_nodes[i] = element_nodes[i] - 1
         element_list.append(element_nodes)
@@ -66,9 +58,9 @@ def plot_results(model, solution, deformation_scale, window_name, plot_matrix):
         element_coordinates_x.append([element_centre_x])
         element_coordinates_y.append([element_centre_y])
 
-    stress_principal = solution.stress_principal["s_max"].tolist()
-    stress_principal_x = solution.stress_principal["opp"].tolist()
-    stress_principal_y = solution.stress_principal["adj"].tolist()
+    stress_principal   = solution.results["element"]["SP"].data["s_max"].tolist()
+    stress_principal_x = solution.results["element"]["SP"].data["opp"].tolist()
+    stress_principal_y = solution.results["element"]["SP"].data["adj"].tolist()
     stress_principal_x_opp = [x * -1 for x in stress_principal_x]
     stress_principal_y_opp = [y * -1 for y in stress_principal_y]
 
