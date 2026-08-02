@@ -8,8 +8,6 @@ from tabulate import tabulate
 
 from fe_solver.core import direct_solver, elements, model
 
-# import matplotlib.pyplot as plt
-
 
 class FieldOutputs:
     def __init__(self, name, description, field_type, data):
@@ -443,4 +441,5 @@ if __name__ == "__main__":
     pp.pprint(s.forces)
     pp.pprint(s.stress_normal["s1"]["e8"])
     pp.pprint(s.results)
-    print(s.results["element"]["S"].data.loc["e1", "s1"])
+    pp.pprint(s.results["element"]["S"].data.loc["e1", "s1"])
+    pp.pprint(s.results["element"]["S"].data)
