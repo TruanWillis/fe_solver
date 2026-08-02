@@ -1,0 +1,67 @@
+name: docs
+
+# Builds the documentation site with MkDocs Material and publishes it to GitHub Pages.
+# Runs automatically on main; use "Run workflow" in the Actions tab to publish from
+# another branch without merging.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Pinned deliberately. MkDocs 2.0 is a breaking release with no migration path,
+      # so an unpinned install would eventually fail without warning.
+      - run: pip install "mkdocs-material==9.7.7"
+
+      - name: Prepare docs
+        env:
+          BLOB: https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}
+        run: |
+          # The README is the landing page. Its links are written for the repo root
+          # ("docs/theory.md"), so strip the prefix to make them work inside docs/.
+          cp README.md docs/index.md
+          sed -i 's#](docs/#](#g' docs/index.md
+
+          # todo.md and roadmap.md are not published. Point every link at the file
+          # on GitHub instead, so the references still resolve.
+          sed -i "s#](todo\.md)#]($BLOB/docs/todo.md)#g" docs/*.md
+          sed -i "s#](roadmap\.md)#]($BLOB/docs/roadmap.md)#g" docs/*.md
+
+          # The example .inp file lives outside docs/ and cannot be served.
+          sed -i "s#](\.\./examples/#]($BLOB/examples/#g" docs/*.md
+
+          rm docs/todo.md docs/roadmap.md
+
+      - run: mkdocs build --strict
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

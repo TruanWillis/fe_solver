@@ -1,8 +1,8 @@
 # FEsolver
 
 A 2D plane-stress finite element analysis solver written in Python. Models are defined
-using `.inp` text files in a format similar to Simulia Abaqus, making it accessible to
-anyone familiar with commercial FEA software.
+using `.inp` text files in a format similar to Abaqus, making it accessible to anyone
+familiar with commercial FEA software.
 
 FEsolver is intended as a learning tool — the codebase is structured to reflect the
 theoretical steps of the finite element process, and the documentation explains the
@@ -100,18 +100,18 @@ pytest
 
 **Learning the method**
 
-- [FEA Theory](docs/theory.md) — the finite element method as implemented in FEsolver, from the governing PDEs through to stress recovery
-- [Worked Example](docs/worked_example.md) — a two-element model taken by hand from input file to final stresses, with every calculation shown
+- [Theory and Process](docs/theory.md) — what FEsolver does at each step and why, from the governing PDEs to stress recovery
+- [Worked Example](docs/worked_example.md) — a two-element model taken by hand from input file to stresses, with every calculation shown
 
 **Reference**
 
-- [Keyword Reference](docs/keywords.md) — full reference for `.inp` file keywords
+- [Keywords](docs/keywords.md) — the `.inp` keywords FEsolver understands
 - [Data Structures](docs/data_structures.md) — how the code represents a model, from parsed input to results
 
 **Project**
 
-- [Roadmap](docs/ROADMAP.md) — planned direction and phasing
-- [Work Items](docs/TODO.md) — known issues and open work
+- [Roadmap](docs/roadmap.md) — planned direction and phasing
+- [Work Items](docs/todo.md) — known issues and open work
 
 ---
 

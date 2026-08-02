@@ -18,11 +18,37 @@ The "Plot results" button fails on every model on `develop`.
 |---|---|---|---|
 | `fe_solver/gui/plot.py` | 19 | `solution.stress_mises` | `solution.results["element"]["SM"].data` |
 | `fe_solver/gui/plot.py` | 61-63 | `solution.stress_principal` | `solution.results["element"]["SP"].data` |
-| `fe_solver/gui/gui.py` | 238-239 | `float(DataFrame.max())` | `float(df.abs().max().max())` |
+| `fe_solver/gui/gui.py` | 238 | `float(DataFrame.max())` | `float(df.abs().max().max())` |
 
-`gui.py:238` calls `.max()` on a 2-column DataFrame, which returns a Series —
-`float()` on it raises `TypeError`. It also needs `.abs()`; as written it reports the
-max *signed* displacement, not magnitude.
+Re-verified 2026-08-02, still live. `plot.py:19` raises
+`AttributeError: 'Solver' object has no attribute 'stress_mises'` — the Solver exposes
+only `results`, holding `element: [S, SP, SM]` and `node: [U, RF]`.
+
+Three points of detail:
+
+- **`gui.py:239` does not currently fail.** `SM.data` is single-column, so
+  `float(df.max())` receives a one-element Series, which pandas 1.5.3 still converts. It
+  is deprecated and breaks on pandas 2.x, so it wants the same fix, but only line 238
+  raises today.
+- **The `.abs()` change is latent, not demonstrated.** On all four current models the
+  signed and absolute maxima are identical, because every one displaces positively:
+
+  ```
+  tests/fixtures/test_input_1.inp  signed=+2.0000e+00  abs=2.0000e+00
+  tests/fixtures/test_input_2.inp  signed=+1.4968e-02  abs=1.4968e-02
+  tests/fixtures/test_input_3.inp  signed=+1.1921e-02  abs=1.1921e-02
+  examples/worked_example.inp      signed=+4.7619e-03  abs=4.7619e-03
+  ```
+
+  A model in compression would report the wrong number, so `.abs()` is still correct —
+  but no existing fixture exercises it.
+- **The label disagrees with the plot.** `gui.py` logs "Max displacement" but reports the
+  largest *component*, while `plot.py:23-25` builds `√(u² + v²)` and titles the contour
+  "U [Magnitude]". If the log line is meant to describe that plot, it should be the
+  magnitude.
+
+Note that `gui.py:245` wraps the call in `except Exception`, so this surfaces as an
+"Error plotting result" log line rather than a traceback.
 
 **Verify:**
 
@@ -394,6 +420,30 @@ print('true   :', (m.cos(t)*s1, m.sin(t)*s1))"
 
 Documented as a limitation in [data_structures.md](data_structures.md) and
 [worked_example.md](worked_example.md) until fixed.
+
+### [ ] 27. Publish the documentation site
+
+Added 2026-08-02. `mkdocs.yml` and `.github/workflows/docs.yml` are in place and a build
+has been verified locally under `--strict` — 5 pages, no link or anchor warnings. What
+remains is deployment and follow-up.
+
+- [ ] **Enable Pages.** Settings → Pages → Source: **GitHub Actions**. This is the only
+      manual step and nothing publishes without it.
+- [ ] **Get current docs onto `main`.** The workflow builds on push to `main`, which is
+      behind `develop`, so a push today would publish the *old* docs. Either merge
+      `develop` first, or use Actions → Run workflow against `develop` for the initial
+      deploy.
+- [ ] **Link the site from `README.md`** once it is live at
+      `https://truanwillis.github.io/fe_solver/`.
+- [ ] **Review the pin.** `mkdocs-material==9.7.7` is pinned deliberately: MkDocs 2.0 is
+      a breaking release with no migration path, so an unpinned install would work now
+      and fail silently later. Revisit when upgrading.
+
+`todo.md` and `roadmap.md` are deliberately excluded from the site. The workflow deletes
+them before building and rewrites the 19 links that point at them — 16 to `todo.md`, 2 to
+`roadmap.md`, 1 to `examples/worked_example.inp` — to GitHub blob URLs, so the references
+still resolve for a reader on the site. **Any new link to either file from a published doc
+needs the same treatment**, or `mkdocs build --strict` will fail the workflow.
 
 ---
 

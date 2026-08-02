@@ -3,3 +3,6 @@ __pycache__/
 /config_user.json
 **/outputs/
 .python-version
+
+# MkDocs build output
+site/
