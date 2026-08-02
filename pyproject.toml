@@ -6,6 +6,8 @@ build-backend = "hatchling.build"
 name = "fe_solver"
 version = "0.2.3"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "matplotlib>=3.7.1",
     "numpy>=1.24.2",
