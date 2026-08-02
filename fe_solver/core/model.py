@@ -1,5 +1,4 @@
 import json
-import os
 import numpy as np
 import pprint
 import pickle
@@ -96,8 +95,9 @@ class ModelBuilder:
         """
 
         split_first_line = lines[0].split(",")
-        set_name = split_first_line[1].split("=")[1].strip()
-        self.model["nodesets"][set_name] = []
+        set_name = split_first_line[1].split("=")[1].strip().lower()
+        if set_name not in self.model["nodesets"]:
+            self.model["nodesets"][set_name] = []
         for line in lines[1:]:
             nodes = line.split(",")
             if "generate" in lines[0]:
@@ -105,12 +105,14 @@ class ModelBuilder:
                 end = int(nodes[1].strip())
                 inc = int(nodes[2].strip())
                 for node in range(start, end + inc, inc):
-                    self.model["nodesets"][set_name].append(node)
+                    if node not in self.model["nodesets"][set_name]:
+                        self.model["nodesets"][set_name].append(node)
             else:
                 for node in nodes:
                     try:
                         node = int(node.strip())
-                        self.model["nodesets"][set_name].append(node)
+                        if node not in self.model["nodesets"][set_name]:
+                            self.model["nodesets"][set_name].append(node)
                     except Exception:
                         pass
 
@@ -123,8 +125,9 @@ class ModelBuilder:
         """
 
         split_first_line = lines[0].split(",")
-        set_name = split_first_line[1].split("=")[1].strip()
-        self.model["elementsets"][set_name] = []
+        set_name = split_first_line[1].split("=")[1].strip().lower()
+        if set_name not in self.model["elementsets"]:
+            self.model["elementsets"][set_name] = []
         for line in lines[1:]:
             elements = line.split(",")
             if "generate" in lines[0]:
@@ -132,12 +135,14 @@ class ModelBuilder:
                 end = int(elements[1].strip())
                 inc = int(elements[2].strip())
                 for element in range(start, end + inc, inc):
-                    self.model["elementsets"][set_name].append(element)
+                    if element not in self.model["elementsets"][set_name]:
+                        self.model["elementsets"][set_name].append(element)
             else:
                 for element in elements:
                     try:
                         element = int(element.strip())
-                        self.model["elementsets"][set_name].append(element)
+                        if element not in self.model["elementsets"][set_name]:
+                            self.model["elementsets"][set_name].append(element)
                     except Exception:
                         pass
 
@@ -152,9 +157,9 @@ class ModelBuilder:
         split_first_line = lines[0].split(",")
         for item in split_first_line:
             if "elset" in item.lower():
-                self.model["section"]["elementset"] = item.split("=")[1]
+                self.model["section"]["elementset"] = item.split("=")[1].strip().lower()
             elif "material" in item.lower():
-                self.model["section"]["material"] = item.split("=")[1]
+                self.model["section"]["material"] = item.split("=")[1].strip().lower()
         thickness = float(self.strip_input(lines[1].split(","))[0])
         self.model["section"]["thickness"] = thickness
 
@@ -166,7 +171,7 @@ class ModelBuilder:
             lines (list): Nested list of strings.
         """
 
-        material_name = lines[0].split("=")[1].strip("\n")
+        material_name = lines[0].split("=")[1].strip().lower()
         self.model["material"][material_name] = {}
 
     def gen_material_elasticity(self, lines):
@@ -195,7 +200,7 @@ class ModelBuilder:
             try:
                 node = int(values[0])
             except Exception:
-                node = values[0]
+                node = values[0].lower()
             if node not in self.model["boundary"]:
                 self.model["boundary"][node] = {}
             if values[1] == values[2]:
@@ -219,7 +224,7 @@ class ModelBuilder:
             try:
                 node = int(values[0])
             except Exception:
-                node = values[0]
+                node = values[0].lower()
             if node not in self.model["load"]:
                 self.model["load"][node] = {}
             if int(values[1]) < 3:
