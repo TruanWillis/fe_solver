@@ -20,18 +20,19 @@ The "Plot results" button fails on every model on `develop`.
 | `fe_solver/gui/plot.py` | 61-63 | `solution.stress_principal` | `solution.results["element"]["SP"].data` |
 | `fe_solver/gui/gui.py` | 238 | `float(DataFrame.max())` | `float(df.abs().max().max())` |
 
-Re-verified 2026-08-02, still live. `plot.py:19` raises
+Re-verified 2026-08-02. `plot.py:19` raises
 `AttributeError: 'Solver' object has no attribute 'stress_mises'` — the Solver exposes
-only `results`, holding `element: [S, SP, SM]` and `node: [U, RF]`.
+only `results`, holding `element: [S, SP, SM]` and `node: [U, RF]`. `gui.py:245` wraps the
+call in `except Exception`, so it surfaces as an "Error plotting result" log line rather
+than a traceback.
 
 Three points of detail:
 
 - **`gui.py:239` does not currently fail.** `SM.data` is single-column, so
-  `float(df.max())` receives a one-element Series, which pandas 1.5.3 still converts. It
-  is deprecated and breaks on pandas 2.x, so it wants the same fix, but only line 238
-  raises today.
-- **The `.abs()` change is latent, not demonstrated.** On all four current models the
-  signed and absolute maxima are identical, because every one displaces positively:
+  `float(df.max())` receives a one-element Series, which pandas 1.5.3 still converts.
+  Deprecated, and breaks on pandas 2.x.
+- **The `.abs()` change is latent.** Signed and absolute maxima are identical on all four
+  current models, so nothing exercises it:
 
   ```
   tests/fixtures/test_input_1.inp  signed=+2.0000e+00  abs=2.0000e+00
@@ -40,15 +41,10 @@ Three points of detail:
   examples/worked_example.inp      signed=+4.7619e-03  abs=4.7619e-03
   ```
 
-  A model in compression would report the wrong number, so `.abs()` is still correct —
-  but no existing fixture exercises it.
+  A model in compression would report the wrong number.
 - **The label disagrees with the plot.** `gui.py` logs "Max displacement" but reports the
-  largest *component*, while `plot.py:23-25` builds `√(u² + v²)` and titles the contour
-  "U [Magnitude]". If the log line is meant to describe that plot, it should be the
-  magnitude.
-
-Note that `gui.py:245` wraps the call in `except Exception`, so this surfaces as an
-"Error plotting result" log line rather than a traceback.
+  largest *component*; `plot.py:23-25` builds `√(u² + v²)` and titles the contour
+  "U [Magnitude]".
 
 **Verify:**
 
@@ -130,8 +126,6 @@ r = K @ d - F
 residual = np.linalg.norm(r[mask]) / max(np.linalg.norm(F), 1.0)
 ```
 
-A check that always passes is worse than no check — it teaches false confidence.
-
 ### [ ] 4. Prescribed displacements silently ignored when a load is present
 
 `fe_solver/core/solver.py:183-187`, `220-230`, `272-278`
@@ -144,19 +138,17 @@ no load:      n5 v = 1.000       correct
 + 1 N Cload:  n5 v = 1.97e-07    prescribed displacement vanished
 ```
 
-The maths in `apply_sign_correction` is *correct* for the pure-displacement case —
-solving `K_ff x = K_fc·d_c` and negating gives the right answer — but it's expressed as
-an unexplained sign flip rather than the standard form.
+`apply_sign_correction` is *correct* for the pure-displacement case — solving
+`K_ff x = K_fc·d_c` and negating gives the right answer — but it is expressed as an
+unexplained sign flip rather than the standard form.
 
-**Fix** — write it the textbook way. Fixes the bug and improves the teaching value:
+**Fix** — the textbook form. No branch, no sign correction, handles mixed models:
 
 ```python
 # K_ff · u_f = F_f − K_fc · d_c    (static condensation)
 d_prescribed = np.where(displacements == "*", 0.0, displacements).astype(float)
 rhs = forces[mask] - (stiffness_matrix @ d_prescribed)[mask]
 ```
-
-One expression, no branch, no sign correction, handles mixed models.
 
 - [ ] Delete `apply_sign_correction`
 - [ ] Delete `homogeneous_model` (it currently means "has a load", the opposite of what
@@ -180,9 +172,9 @@ CCW: area = +0.5,  K diagonal = [148352, 148352, 109890]
 CW:  area = -0.5,  K diagonal = [-148352, -148352, -38462]
 ```
 
-Abaqus-exported meshes happen to be consistently CCW so this doesn't bite today, but a
-hand-written `.inp` — exactly what a trainee produces — silently yields garbage.
-Use `abs()`, and warn on a negative determinant.
+Abaqus-exported meshes are consistently CCW so this does not bite today, but a
+hand-written `.inp` silently yields garbage. Use `abs()`, and warn on a negative
+determinant.
 
 ### [ ] 7. `*Boundary` parsing drops and crashes on valid Abaqus syntax
 
@@ -191,8 +183,6 @@ Use `abs()`, and warn on a negative determinant.
 - `7, 1, 2` (constrain DOF 1 *through* 2) — **silently ignored**, model under-constrained
 - `8, ENCASTRE` — `IndexError: list index out of range`
 - `PINNED` likewise unsupported
-
-Silently dropping a boundary condition is the most dangerous failure mode in the parser.
 
 ### [ ] 8. Assembly swallows all exceptions
 
@@ -222,11 +212,10 @@ material 1. Material name is captured but never linked to section or elements.
 ### [ ] 12. No singularity check in the direct solver
 
 `fe_solver/core/direct_solver.py:57` divides by `self.stiffness[i, i]` with no guard. An
-under-constrained model — a common trainee mistake — yields `inf`/`nan` propagating
-silently into the stress results.
+under-constrained model yields `inf`/`nan` propagating silently into the stress results.
 
-A pivot-magnitude check with a clear message ("model is under-constrained, check
-boundary conditions") would be one of the most educational additions in the codebase.
+Wanted: a pivot-magnitude check with a clear message — "model is under-constrained, check
+boundary conditions".
 
 ---
 
@@ -238,9 +227,8 @@ boundary conditions") would be one of the most educational additions in the code
 `dof × dof` DataFrame, per element. Memory is O(dof²) dense and label lookups dominate.
 `examples/plate_hole_disp_refined_mesh.inp` will be slow.
 
-Keep the pandas *presentation* (it's the clearest part of the code) but accumulate into a
-numpy array via the `label_to_idx` map already built in `gen_solver_maps`, then wrap the
-result in a DataFrame. Same readability, orders of magnitude faster.
+Keep the pandas presentation but accumulate into a numpy array via the `label_to_idx` map
+already built in `gen_solver_maps`, then wrap the result in a DataFrame.
 
 ### [ ] 14. Replace the `"*"` sentinel
 
@@ -275,9 +263,7 @@ index would be equally readable and non-parsing. Low priority.
 
 ### [ ] 18. Add an analytical patch test
 
-A uniaxial plate under uniform tension where `σ = F/A` exactly. Worth more than all the
-current golden-value tests combined, and directly teachable — it's the standard FEA
-verification exercise.
+A uniaxial plate under uniform tension where `σ = F/A` exactly.
 
 **The model already exists and is verified.** `examples/worked_example.inp` is a 10×10×2 mm
 plate under 2000 N, pinned at node 1 and rollered at node 2. The solver reproduces the
@@ -292,10 +278,9 @@ analytical answer exactly:
 | Total reaction | −2000 N | −2000.0 |
 
 Refining to four elements (centre node at 5,5) leaves the answer unchanged — 100.0 MPa in
-every element, displacements identical to the last bit — which is the invariance a patch
-test asserts.
+every element, displacements identical to the last bit.
 
-Writing the test is now just asserting these values. Walkthrough in
+The test is now just asserting these values. Walkthrough in
 [worked_example.md](worked_example.md).
 
 ### [ ] 19. Replace pickle fixtures with explicit assertions
@@ -332,11 +317,10 @@ also absent from the Section 9 summary table, which otherwise maps one row per s
 function.
 
 Needs new derivation content — reactions as `{R} = [K]{u} - {F}`, why they are
-recovered only at constrained DOFs, and what a residual check is actually testing.
+recovered only at constrained DOFs, and what a residual check tests.
 
 **Blocked on item 3.** Writing this now would document a residual check that validates
-nothing. Do item 3 first, then document the corrected version — the *why* of a proper
-residual norm is the teachable part.
+nothing. Do item 3 first.
 
 ### [ ] 23. Fix the homogeneous / non-homogeneous terminology
 
@@ -423,27 +407,23 @@ Documented as a limitation in [data_structures.md](data_structures.md) and
 
 ### [ ] 27. Publish the documentation site
 
-Added 2026-08-02. `mkdocs.yml` and `.github/workflows/docs.yml` are in place and a build
-has been verified locally under `--strict` — 5 pages, no link or anchor warnings. What
-remains is deployment and follow-up.
+Added 2026-08-02. `mkdocs.yml` and `.github/workflows/docs.yml` are in place; a build has
+been verified locally under `--strict` — 5 pages, no warnings. Remaining:
 
-- [ ] **Enable Pages.** Settings → Pages → Source: **GitHub Actions**. This is the only
-      manual step and nothing publishes without it.
+- [ ] **Enable Pages.** Settings → Pages → Source: **GitHub Actions**. Nothing publishes
+      without it.
 - [ ] **Get current docs onto `main`.** The workflow builds on push to `main`, which is
-      behind `develop`, so a push today would publish the *old* docs. Either merge
-      `develop` first, or use Actions → Run workflow against `develop` for the initial
-      deploy.
-- [ ] **Link the site from `README.md`** once it is live at
+      behind `develop`. Either merge `develop` first, or use Actions → Run workflow
+      against `develop` for the initial deploy.
+- [ ] **Link the site from `README.md`** once live at
       `https://truanwillis.github.io/fe_solver/`.
-- [ ] **Review the pin.** `mkdocs-material==9.7.7` is pinned deliberately: MkDocs 2.0 is
-      a breaking release with no migration path, so an unpinned install would work now
-      and fail silently later. Revisit when upgrading.
+- [ ] **Review the pin.** `mkdocs-material==9.7.7`. MkDocs 2.0 is a breaking release with
+      no migration path, so an unpinned install would fail silently later.
 
-`todo.md` and `roadmap.md` are deliberately excluded from the site. The workflow deletes
-them before building and rewrites the 19 links that point at them — 16 to `todo.md`, 2 to
-`roadmap.md`, 1 to `examples/worked_example.inp` — to GitHub blob URLs, so the references
-still resolve for a reader on the site. **Any new link to either file from a published doc
-needs the same treatment**, or `mkdocs build --strict` will fail the workflow.
+`todo.md` and `roadmap.md` are excluded from the site. The workflow deletes them before
+building and rewrites the 19 links pointing at them — 16 to `todo.md`, 2 to `roadmap.md`,
+1 to `examples/worked_example.inp` — to GitHub blob URLs. **Any new link to either file
+from a published doc needs the same treatment**, or `mkdocs build --strict` fails.
 
 ---
 
@@ -452,17 +432,13 @@ needs the same treatment**, or `mkdocs build --strict` will fail the workflow.
 ### [ ] 21. Green tests as a merge gate
 
 Both branches currently ship failing tests, and the 0.2.3 CHANGELOG entry lists work that
-isn't finished. Treating the suite as a gate rather than a record is the single biggest
-coding-practice improvement available here, and the habit that transfers most directly to
-professional work.
+isn't finished. Treat the suite as a gate rather than a record.
 
 ---
 
 ## Suggested order
 
-Items **3, 4 and 7/12** change what the tool *teaches* — a training solver that is quietly
-wrong, or that passes a meaningless self-check, is worse than one that refuses to run.
-Everything else is tidying.
+Items **3, 4 and 7/12** change what the tool reports. Everything else is tidying.
 
 1. Item 1 — unbreak `develop`
 2. Item 3 — real residual check

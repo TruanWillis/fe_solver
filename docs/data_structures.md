@@ -42,11 +42,10 @@ Labels are ordered node-by-node, x before y, so a 4-node model has 8 DOFs in thi
 1u, 1v, 2u, 2v, 3u, 3v, 4u, 4v
 ```
 
-This ordering is what makes assembly work: an element stiffness matrix carries the same
-labels as the global matrix, so adding one into the other needs no index arithmetic.
-`Solver.node_headings` holds the list.
+An element stiffness matrix carries the same labels as the global matrix, so assembly
+needs no index arithmetic. `Solver.node_headings` holds the list.
 
-Nodes must be numbered contiguously from 1, because the list is built with
+Nodes must be numbered contiguously from 1 — the list is built with
 `range(1, node_count + 1)`.
 
 > The `.inp` file uses the Abaqus numeric convention instead — `1` for x, `2` for y. The
@@ -85,8 +84,8 @@ first and falls back to `int()`.
 verbatim from the input file text.
 
 **`active_mask` is the single source of truth for what gets solved.** Built in
-`gen_solver_maps()` by walking the boundary conditions and switching off every constrained
-DOF. Matrix reduction, the reduced index list and reaction recovery all derive from it.
+`gen_solver_maps()`. Matrix reduction, the reduced index list and reaction recovery all
+derive from it.
 
 ---
 
@@ -105,14 +104,14 @@ One per element, constructed in `define_element_stiffness()` and stored at
 | `D` | `ndarray` `(3, 3)` | Stress-strain matrix |
 | `element_stiffness_matrix` | `DataFrame` `(6, 6)` | `[Kᵉ]`, indexed by DOF label |
 
-`element_stiffness_matrix` is the only pandas object here, and is pandas specifically so
-it can carry DOF labels into assembly.
+`element_stiffness_matrix` is the only pandas object here — pandas specifically so it can
+carry DOF labels into assembly.
 
 ---
 
 ## Inside the Solver
 
-Working state during the solve — what a debugger shows when stepping through.
+Working state during the solve.
 
 | Attribute | Type | Contents |
 |---|---|---|
@@ -135,10 +134,9 @@ a plain `ndarray` inside `reduce_matrix()`. Code before reduction can use labels
 after cannot.
 
 **`displacements` has `object` dtype.** It is initialised with the string `"*"` in every
-position to mean unknown, and those are replaced with floats as boundary conditions and
-solved values arrive. Mixing strings and floats forces `object` dtype, which is why
-`.astype(np.float64)` appears before any arithmetic on it. See item 14 in
-[todo.md](todo.md).
+position to mean unknown, replaced with floats as boundary conditions and solved values
+arrive. The string/float mix forces `object` dtype, which is why `.astype(np.float64)`
+appears before any arithmetic on it. See item 14 in [todo.md](todo.md).
 
 ---
 
@@ -200,8 +198,8 @@ FieldOutput(name='S', type='element', components=['s1', 's2', 's12'], size=2)
 
 ## Planned changes
 
-These structures are deliberately plain, which makes them easy to inspect but leaves the
-meaning implicit — `model["elasticity"][0]` is Young's modulus only by convention.
+These structures are plain, which leaves the meaning implicit —
+`model["elasticity"][0]` is Young's modulus only by convention.
 
 Phase 1 of the [roadmap](roadmap.md) replaces the model dictionary with typed dataclasses
 (`Node`, `Element`, `Material`, `Section`, `Model`) and a dimension-aware `DofMap` in

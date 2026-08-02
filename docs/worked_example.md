@@ -1,10 +1,7 @@
 # Worked Example
 
-A complete analysis worked by hand, from input file to stresses. Every number is the
+A two-element model worked by hand, from input file to stresses. Every number is the
 value FEsolver computes, so each stage can be checked as you go.
-
-The model is two elements, four nodes, eight DOFs — small enough for a calculator, large
-enough that two elements share nodes so assembly does something real.
 
 Input file: [`examples/worked_example.inp`](../examples/worked_example.inp)
 
@@ -33,7 +30,8 @@ numbers do.
 
 ## 1. The Problem
 
-A square steel plate, 10 mm × 10 mm, 2 mm thick, in vertical tension.
+A square steel plate, 10 mm × 10 mm, 2 mm thick, in vertical tension. Node 1 pinned,
+node 2 on a roller.
 
 ```
               1000 N          1000 N
@@ -59,40 +57,28 @@ A square steel plate, 10 mm × 10 mm, 2 mm thick, in vertical tension.
 | Applied load | 1000 N up at nodes 3 and 4 (2000 N total) |
 
 Units are mm, N, MPa. FEsolver has no concept of units — consistency is the user's
-responsibility. Millimetres and newtons give stresses in MPa.
+responsibility.
 
-**Restraints.** Node 1 is pinned (u and v), node 2 is a roller (v only). Fixing both
-bottom nodes in x would prevent the plate contracting sideways as it stretches,
-introducing artificial stress near the base. The roller allows Poisson contraction, so
-the stress field stays uniform and the answer can be checked by hand.
-
-**Mesh.** A quadrilateral cannot be meshed with one triangle, so the square is split on
-the diagonal from node 1 to node 3. E1 is the lower-right triangle (nodes 1, 2, 3), E2
-the upper-left (nodes 1, 3, 4). Both are listed counter-clockwise — element area comes
-from a determinant, which is negative for clockwise ordering and gives a
-negative-definite stiffness matrix. FEsolver does not detect this; see item 6 in
-[todo.md](todo.md).
+E1 is the lower-right triangle (nodes 1, 2, 3), E2 the upper-left (nodes 1, 3, 4). Both
+are listed counter-clockwise. Element area comes from a determinant, so clockwise
+ordering gives a negative area and a negative-definite stiffness matrix — FEsolver does
+not detect this, see item 6 in [todo.md](todo.md).
 
 ---
 
 ## 2. Expected Answer
 
-The plate is in uniaxial tension, carried across a section 10 mm wide and 2 mm thick.
-
 ```
-A    = 10 × 2 = 20 mm²
-σyy  = F/A = 2000/20 = 100 MPa
-εyy  = σyy/E = 100/210000 = 4.7619 × 10⁻⁴
-v_top = εyy × 10 = 4.7619 × 10⁻³ mm
-εxx  = -ν εyy = -1.42857 × 10⁻⁴
-u_x=10 = -1.42857 × 10⁻³ mm
+A      = 10 × 2 = 20 mm²
+σyy    = F/A = 2000/20              = 100 MPa
+εyy    = σyy/E = 100/210000         = 4.7619 × 10⁻⁴
+v_top  = εyy × 10                   = 4.7619 × 10⁻³ mm
+εxx    = -ν εyy                     = -1.42857 × 10⁻⁴
+u_x=10 = εxx × 10                   = -1.42857 × 10⁻³ mm
 ```
-
-Expect 100 MPa everywhere, the top edge rising 0.0047619 mm, the right edge drawing in
-0.00142857 mm.
 
 The stress field is uniform, so a constant-strain element reproduces this **exactly**,
-not approximately. This is the standard *patch test*; a solver that fails it has a bug.
+not approximately — the standard *patch test*.
 
 ---
 
@@ -153,8 +139,7 @@ applied, so node 1 needs two lines.
 ### Loads
 
 Node number, DOF, magnitude. FEsolver applies loads at nodes only — there is no pressure
-or distributed load keyword, so converting a distributed load to equivalent nodal forces
-is the user's job.
+or distributed load keyword.
 
 ```
 *Cload
@@ -182,15 +167,14 @@ unedited.
  'active_mask': [False, False, True, False, True, True, True, True]}
 ```
 
-The **active mask** is the key derived value — which of the 8 DOFs are free to move:
+`active_mask` is the key derived value — which of the 8 DOFs are free:
 
 | DOF | `1u` | `1v` | `2u` | `2v` | `3u` | `3v` | `4u` | `4v` |
 |---|---|---|---|---|---|---|---|---|
 | Free? | ✗ | ✗ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
 
-Three constrained, five free. Those five are the unknowns.
-
-Full model dictionary reference in [data_structures.md](data_structures.md).
+Five free DOFs, five unknowns. Full dictionary reference in
+[data_structures.md](data_structures.md).
 
 ---
 
@@ -198,20 +182,17 @@ Full model dictionary reference in [data_structures.md](data_structures.md).
 
 ### Area
 
-Area is the determinant of the coordinate matrix, halved. Element 1, nodes 1 (0,0),
-2 (10,0), 3 (10,10):
+Element 1, nodes 1 (0,0), 2 (10,0), 3 (10,10):
 
 ```
 A = ½ det | 1    0    0 |
-          | 1   10    0 |   = ½(1(10·10 - 0·10)) = 100/2 = 50 mm²
+          | 1   10    0 |   = ½(1(10·10 - 0·10)) = 50 mm²
           | 1   10   10 |
 ```
 
-The square is 100 mm² and the diagonal halves it, so both elements are 50 mm².
+Both elements are 50 mm².
 
 ### Shape function coefficients
-
-`[B]` is built from six coordinate differences:
 
 ```
 b₁ = y₂ - y₃     b₂ = y₃ - y₁     b₃ = y₁ - y₂
@@ -231,20 +212,13 @@ c₁ = x₃ - x₂     c₂ = x₁ - x₃     c₃ = x₂ - x₁
                | c₁   b₁   c₂   b₂   c₃   b₃ |
 ```
 
-Element 1, with `2A = 100`:
+Element 1, with `2A = 100`. Columns are `1u 1v 2u 2v 3u 3v`, rows εxx, εyy, γxy:
 
 ```
 [B]₁ =  -0.1      0    0.1      0     0     0
            0      0      0   -0.1     0   0.1
            0   -0.1   -0.1    0.1   0.1     0
 ```
-
-Columns are `1u 1v 2u 2v 3u 3v`; rows are εxx, εyy, γxy. The first row reads
-`εxx = -0.1u₁ + 0.1u₂` — stretching node 2 away from node 1 over a 10 mm span produces
-x-strain. There is no dependence on u₃ because nodes 2 and 3 share an x coordinate.
-
-`[B]` contains no variable — it is constant across the element. That is what makes S3 a
-constant-strain element, and why the stiffness integral collapses to a multiplication.
 
 Element 2, columns `1u 1v 3u 3v 4u 4v`:
 
@@ -255,8 +229,6 @@ Element 2, columns `1u 1v 3u 3v 4u 4v`:
 ```
 
 ### `[D]` — material
-
-For plane stress:
 
 ```
 [D] = E/(1-ν²) × | 1   ν        0    |
@@ -274,8 +246,7 @@ E/(1-ν²) = 210000/0.91 = 230769.23
                0           0   80769.23
 ```
 
-Check: `230769.23 × 0.3 = 69230.77` and `230769.23 × 0.35 = 80769.23`. `[D]` is identical
-for both elements — same material, same section.
+Identical for both elements — same material, same section.
 
 ### `[Kᵉ]`
 
@@ -321,31 +292,23 @@ Element 2:
 4v    80769.23 -230769.23   69230.77  -80769.23 -150000.00  311538.46
 ```
 
-Two properties to check on any element matrix:
-
-- **Symmetric**, a consequence of `[B]ᵀ[D][B]` with symmetric `[D]`.
-- **Every row sums to zero** — rigid-body translation produces no force. This is why an
-  unconstrained stiffness matrix is singular.
+Both are symmetric and every row sums to zero. Check these on any element matrix.
 
 ---
 
 ## 6. Assembly
 
-The global matrix is 8 × 8, one row and column per DOF, initialised to zero. Each element
-matrix is added at the positions matching its own DOF labels.
+The global matrix is 8 × 8, initialised to zero. Each element matrix is added at the
+positions matching its own DOF labels.
 
 Element 1 touches `1u 1v 2u 2v 3u 3v`, element 2 touches `1u 1v 3u 3v 4u 4v`. They
-overlap at `1u 1v 3u 3v` — the two nodes on the shared diagonal — and those positions
-receive both contributions:
+overlap at `1u 1v 3u 3v` — the shared diagonal — and those positions receive both
+contributions:
 
 ```
-K_1u,1u = 230769.23 + 80769.23 = 311538.46
-K_1u,3v = (-69230.77) + (-80769.23) = -150000.00
+K_1u,1u = 230769.23 + 80769.23   = 311538.46
+K_1u,3v = -69230.77 + -80769.23  = -150000.00
 ```
-
-Position `2u,4u` gets nothing. Node 2 belongs only to element 1, node 4 only to element
-2, and no element connects them. In a real mesh most node pairs share no element, which
-is why `[K]` is sparse.
 
 ```
              1u         1v         2u         2v         3u         3v         4u         4v
@@ -359,14 +322,12 @@ is why `[K]` is sparse.
 4v    80769.23 -230769.23       0.00       0.00   69230.77  -80769.23 -150000.00  311538.46
 ```
 
-The zero block at `2u,4u` / `2v,4v` and its mirror marks nodes 2 and 4 — the two corners
-not joined by the diagonal.
+The zero block at `2u,4u` / `2v,4v` and its mirror is nodes 2 and 4 — no element connects
+them.
 
 ---
 
 ## 7. Boundary Conditions and Loads
-
-The force vector is zero except where loads were applied:
 
 ```
       1u    1v    2u    2v    3u      3v    4u      4v
@@ -379,8 +340,6 @@ The displacement vector starts as all unknown (`*`), with prescribed values writ
       1u    1v    2u    2v    3u    3v    4u    4v
 u = [ 0.0   0.0    *    0.0    *     *     *     * ]
 ```
-
-Five unknowns, matching the active mask from step 4.
 
 ---
 
@@ -402,9 +361,6 @@ Rows and columns for constrained DOFs are struck out, leaving `[K_ff]{u_f} = {F_
 {F_f} = {0, 0, 1000, 0, 1000}
 ```
 
-The 8 × 8 system is now 5 × 5 and no longer singular — the constraints have removed the
-rigid-body motions.
-
 ---
 
 ## 9. Solving
@@ -413,9 +369,8 @@ rigid-body motions.
 
 ### Forward elimination
 
-Each step applies a partial pivot, swapping in the row with the largest absolute value in
-the current column. Here the diagonal already dominates so no swaps occur, but on an
-ill-conditioned model they matter.
+Each step applies a partial pivot first. Here the diagonal already dominates, so no swaps
+occur.
 
 ```
 Step 0, pivot 2u = 311538.46
@@ -435,8 +390,6 @@ Step 3, pivot 4u = 97677.44
     row 4v -= -0.692410 × row 4u
 ```
 
-The upper triangular system:
-
 ```
               2u          3u          3v          4u          4v          F
 2u    311538.46   -80769.23    69230.77        0.00        0.00        0.00
@@ -447,8 +400,6 @@ The upper triangular system:
 ```
 
 ### Back substitution
-
-The last row has a single unknown; work upward.
 
 ```
 v₄ = 1065.2463 / 223701.73                    =  0.00476190
@@ -465,19 +416,14 @@ u₂ = (0 - 445.0549) / 311538.46               = -0.00142857
 | 3 | −0.00142857 | 0.00476190 |
 | 4 | 0 | 0.00476190 |
 
-Both top nodes rise equally, so the top edge stays horizontal. Both right-hand nodes draw
-in equally, so the right edge stays vertical. Node 4 does not move sideways because it
-sits on the same vertical line as the pinned node 1. The square has become a taller,
-narrower rectangle.
-
 As exact fractions, `0.00476190 = 1/210` and `-0.00142857 = -1/700`.
 
 ---
 
 ## 10. Stresses
 
-Stress is recovered element by element as `{σ} = [D][B]{uᵉ}`. Element 1, DOFs in element
-order `1u 1v 2u 2v 3u 3v`:
+Recovered element by element as `{σ} = [D][B]{uᵉ}`. Element 1, DOFs in element order
+`1u 1v 2u 2v 3u 3v`:
 
 ```
 {uᵉ} = {0, 0, -1/700, 0, -1/700, 1/210}
@@ -499,22 +445,17 @@ Stress, `{σ} = [D]{ε}`:
 τxy =  80769.23 × 0                                       = 0
 ```
 
-The two terms in σxx cancel exactly — the plate contracts sideways by precisely the
-amount that leaves no lateral stress, because nothing restrains it.
-
 | Element | `s1` (σxx) | `s2` (σyy) | `s12` (τxy) |
 |---|---|---|---|
 | e1 | 0.0 | 100.0 | 0.0 |
 | e2 | 0.0 | 100.0 | 0.0 |
-
-Identical, as required for a uniform stress field.
 
 > Column names `s1`, `s2`, `s12` hold σxx, σyy, τxy. They are **not** principal stresses
 > despite the naming.
 
 ### Principal and von Mises
 
-From Mohr's circle, centre `(0+100)/2 = 50` and radius `√(50² + 0²) = 50`:
+Mohr's circle centre `(0+100)/2 = 50`, radius `√(50² + 0²) = 50`:
 
 | | `σ_max` | `σ_min` | `τ_max` |
 |---|---|---|---|
@@ -524,8 +465,6 @@ From Mohr's circle, centre `(0+100)/2 = 50` and radius `√(50² + 0²) = 50`:
 σvm = √(0² - 0(100) + 100² + 3(0)²) = 100 MPa
 ```
 
-For a uniaxial stress state von Mises equals the applied stress exactly.
-
 > The `SP` columns `a`, `opp` and `adj` — the principal *direction*, used only for the
 > vector plot — are currently 90° out. Magnitudes are unaffected. See item 26 in
 > [todo.md](todo.md).
@@ -534,7 +473,7 @@ For a uniaxial stress state von Mises equals the applied stress exactly.
 
 ## 11. Reactions
 
-Reactions are recovered as `{R} = [K]{u} - {F}`:
+Recovered as `{R} = [K]{u} - {F}`:
 
 | Node | `R_x` (N) | `R_y` (N) |
 |---|---|---|
@@ -543,17 +482,9 @@ Reactions are recovered as `{R} = [K]{u} - {F}`:
 | 3 | 0 | 0 |
 | 4 | 0 | 0 |
 
-Three checks, applicable to any model:
-
-1. **Reactions appear only at constrained nodes.** Nodes 3 and 4 are free and carry none.
-2. **Vertical reactions balance the load.** `-1000 - 1000 = -2000` N against +2000 N
-   applied.
-3. **Horizontal reactions are zero.** The roller lets the plate contract freely, so node 1
-   carries no x-reaction. A non-zero value means the restraints are fighting the
-   deformation.
-
-If reactions do not balance the applied load, the model is wrong — check this before
-looking at stress contours.
+Reactions appear only at constrained nodes, the vertical pair balances the 2000 N
+applied, and both x-reactions are zero — the roller is not fighting the Poisson
+contraction.
 
 > FEsolver prints a residual line during the solve. That check is currently vacuous and
 > passes regardless of the answer (item 3 in [todo.md](todo.md)). Check reactions by hand
@@ -572,17 +503,11 @@ looking at stress contours.
 | u at right edge | −0.00142857 mm | −0.00142857 mm | exact |
 | Total reaction | −2000 N | −2000 N | exact |
 
-Exact, not approximate. The true displacement field is linear in x and y, and a linear
-triangle represents a linear field perfectly, so there is no discretisation error.
+Exact because the true displacement field is linear and a linear triangle represents it
+without discretisation error. That holds only while the stress field is uniform — near a
+stress concentration S3 is only as good as the mesh.
 
-This does not hold on a real model:
-
-- **Uniform stress field** — S3 is exact; one element would do.
-- **Varying stress field** — S3 is only as good as the mesh, and poor near a stress
-  concentration. This is why real analyses use quadratic or quadrilateral elements, and
-  why mesh convergence studies exist.
-
-Because the result should be exact, this model makes a good regression test — item 18 in
+The model makes a good regression test for exactly this reason: item 18 in
 [todo.md](todo.md).
 
 ---
@@ -625,7 +550,7 @@ Each has been run; the stated result is what happens.
 
 | Change | Result |
 |---|---|
-| Fix node 2 in x as well (`2, 1, 1`) | The base cannot contract, destroying the uniform field. σyy splits to **97.20** and **102.80** MPa; von Mises drops to 86.53 in one element. No warning is given. |
-| Halve the thickness to 1 mm | Stress doubles to exactly **200 MPa**, as `σ = F/A` requires. |
-| Flip element 1 to clockwise (`1, 1, 3, 2`) | Area goes negative, σyy becomes **1.25 × 10¹⁷** MPa. Returned silently with no error — item 6 in [todo.md](todo.md). |
-| Refine — add a node at (5,5), split into four | Answer unchanged: 100.0 MPa in all four elements, displacements identical to the last bit (0.004761904761904764 against 0.004761904761904762). That invariance is what a patch test asserts. |
+| Fix node 2 in x as well (`2, 1, 1`) | Uniform field destroyed. σyy splits to **97.20** and **102.80** MPa, von Mises drops to 86.53 in one element. No warning given. |
+| Halve the thickness to 1 mm | Stress doubles to exactly **200 MPa**. |
+| Flip element 1 to clockwise (`1, 1, 3, 2`) | Area goes negative, σyy becomes **1.25 × 10¹⁷** MPa. Returned silently — item 6 in [todo.md](todo.md). |
+| Refine — add a node at (5,5), split into four | Unchanged: 100.0 MPa in all four elements, displacements identical to the last bit (0.004761904761904764 against 0.004761904761904762). |

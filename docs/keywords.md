@@ -8,9 +8,8 @@ Abaqus-compatible. See [theory.md](theory.md) for what the solver does with thes
 
 - Lines beginning with a single `*` are keywords. Lines beginning with `**` are comments.
 - A keyword's data lines are every line following it up to the next `*`.
-- **Keywords not listed below are skipped silently.** An `.inp` exported from Abaqus/CAE
-  contains many of these (`*Part`, `*Assembly`, `*Step`, `*Output`), which is why CAE
-  files can be read directly.
+- **Keywords not listed below are skipped silently** — `*Part`, `*Assembly`, `*Step`,
+  `*Output` and the rest of what Abaqus/CAE writes. This is why CAE files read directly.
 - Keyword names are matched case-insensitively. **Set names are case-sensitive**, so
   `_PickedSet9` and `_PICKEDSET9` are two different sets where Abaqus has one. See item 5
   in [todo.md](todo.md).
@@ -50,7 +49,7 @@ DOF `1` is translation in x, `2` is translation in y.
   A range such as `7, 1, 2` is accepted by the parser but **silently ignored**, leaving
   the model under-constrained.
 - Only DOFs `1` and `2` exist in a 2D plane-stress model. Higher values written by
-  Abaqus/CAE (`3` to `6`) are ignored, which is why CAE decks read unedited.
+  Abaqus/CAE (`3` to `6`) are ignored.
 - `ENCASTRE` and `PINNED` are **not supported** and raise an error. Constrain each DOF
   explicitly.
 
@@ -171,8 +170,8 @@ ignored. FEsolver is 2D plane-stress only.
 
 ## \*NSET
 
-Assign nodes to a node set. Node sets are how boundary conditions and loads are applied to
-groups of nodes.
+Assign nodes to a node set. Node sets are how boundary conditions and loads are applied
+to groups of nodes.
 
 **Required parameter:** `NSET` — the name of the set.
 
@@ -213,8 +212,8 @@ Define a shell cross-section.
 Shell thickness
 ```
 
-The thickness is used directly in the element stiffness calculation,
-`[Kᵉ] = [B]ᵀ[D][B] · A · t`. Abaqus/CAE writes a second value on this line (integration
-points through the thickness); it is ignored.
+Used directly in the element stiffness calculation, `[Kᵉ] = [B]ᵀ[D][B] · A · t`.
+Abaqus/CAE writes a second value on this line (integration points through the thickness);
+it is ignored.
 
 [Back to top](#keywords)

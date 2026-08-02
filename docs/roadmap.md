@@ -53,9 +53,9 @@ substantially better and 3D remains an extension rather than a rewrite.
 
 The P0/P1 items in [todo.md](todo.md).
 
-Phase 2 reimplements the element formulation from scratch, and the residual check is the
-safety net for that refactor. It is currently vacuous (item 3) and two tests are red
-(item 2), so there is no way to know whether a reimplementation is correct.
+Phase 2 reimplements the element formulation from scratch and the residual check is the
+safety net for it. That check is vacuous (item 3) and two tests are red (item 2), so
+there is currently no way to know whether a reimplementation is correct.
 
 **Exit criteria:**
 
@@ -83,10 +83,10 @@ disappears once materials are real objects.
 This serves readability rather than fighting it: `element.material.youngs_modulus` reads
 better to a non-developer than `model["elasticity"][0]`.
 
-**Key architectural point — separate the compute representation from the presentation
-representation.** Pandas currently does both, which is why assembly is slow. Compute in
-numpy; render labelled DataFrames for display. The teaching benefit of labelled DOF
-indices is retained while the O(dof²) dense `.at[]` loop goes away (item 13).
+**Separate the compute representation from the presentation representation.** Pandas
+currently does both, which is why assembly is slow. Compute in numpy; render labelled
+DataFrames for display. Labelled DOF indices are retained while the O(dof²) dense `.at[]`
+loop goes away (item 13).
 
 **Exit criteria:**
 
@@ -110,17 +110,15 @@ Build the general machinery:
 ### Order of work
 
 1. **Reimplement S3 through the new machinery.** CST is exact with a single Gauss point,
-   so this must reproduce current results to machine precision — a regression test for
-   which the fixtures already exist.
+   so this must reproduce current results to machine precision. The fixtures already
+   exist.
 2. **Add CPS4.** A quad becomes a shape-function table and a quadrature rule, not a new
    solver.
 3. Optionally CPS6 / CPS8 later.
 
-### Why this is the prize
+### What it unlocks
 
-It unlocks the most important practical lesson in linear FEA, currently unreachable with
-one element type: CST is a bad element, and trainees need to see why. With both elements
-available:
+With one element type, none of the following can be demonstrated. With both:
 
 - Same mesh, S3 vs CPS4, against a known stress concentration factor
 - Shear locking under full vs reduced integration
@@ -147,10 +145,9 @@ shape functions, putting the machinery in one place, and capping inheritance at 
 
 Required before Phase 4 — 3D DOF counts explode and dense assembly walls immediately.
 
-- Triplet (COO) assembly → CSR. This is arguably more teachable than the current nested
-  loop: "each element contributes to these global positions" is what the triplet form
-  states.
-- `scipy.sparse` — a new dependency, worth it.
+- Triplet (COO) assembly → CSR. Arguably reads better than the current nested loop:
+  "each element contributes to these global positions" is what the triplet form states.
+- `scipy.sparse` — a new dependency.
 - Profiling as an explicit exercise. Conditioning and solver stability belong here.
 
 Keep the hand-written Gaussian elimination as the teaching solver and sparse as the
@@ -183,10 +180,10 @@ an alternative such as PyVista.
 
 Runs alongside everything from Phase 0 onward, not a phase of its own.
 
-Training use is self-guided with no sessions from the author, so the software has to teach
-on its own when something fails. That promotes items 6, 7 and 12 from tidying to core
-product. Negative element area, unsupported `*Boundary` syntax, and singular systems must
-each produce a message that explains the FEA concept rather than merely refusing:
+Training use is self-guided, so the software has to explain its own failures. That
+promotes items 6, 7 and 12 from tidying to core product. Negative element area,
+unsupported `*Boundary` syntax and singular systems must each produce a message that
+names the FEA cause rather than merely refusing:
 
 ```
 Model is under-constrained — the structure can still move as a rigid body.
