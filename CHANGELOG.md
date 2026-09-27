@@ -1,5 +1,12 @@
 # ChangeLog
 
+## [0.2.4] - 27-09-2026
+### Changed
+ - Docs updated to align with GOV.UK online language style.
+
+### Fixed
+ - Ceiling added to dependency versions to catch pandas 3 bugging out on "*" values.
+
 ## [0.2.3] - 02-08-2026
 ### Added
  - Reaction load outputs added.

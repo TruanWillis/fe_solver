@@ -21,6 +21,11 @@ Remaining pre-migration reads are tracked separately as item 28.
 `float(self.s.results['element']['SM'].data.max())`. Works on pandas 1.5.3; on pandas 3
 `float()` of a Series raises `TypeError`. See item 31.
 
+**Correction 2026-09-27:** the point below saying it "would have broken on pandas 2.x" is
+wrong. It works on pandas 2.0.3, 2.1.4, 2.2.3 and 2.3.3, returning 22021.26 on
+`test_input_1.inp`. From 2.0 onwards it emits `FutureWarning: Calling float on a single
+element Series is deprecated`. It fails only on pandas 3.
+
 The "Plot results" button failed on every model on `develop`.
 
 | File | Line | Broken reference | Should be |
@@ -108,9 +113,46 @@ model 3  SM e2, U n4 u / v   rel.err  -1.2e-4, -5.7e-4 / +7.8e-4
 Produced by solving each fixture and printing `(actual - expected) / expected` for every
 value asserted in `tests/test_solver.py`.
 
-### [ ] 31. A fresh install cannot solve any model
+### [x] 31. A fresh install cannot solve any model
 
-Added 2026-09-26. `pyproject.toml` sets floors but no ceilings, so `pip install -e ".[dev]"`
+**Closed 2026-09-27 by pinning.** `pyproject.toml` now requires `pandas>=1.5.3,<3`. No
+ceiling on numpy. pandas 3 is not supported; the code still breaks on it as described
+below.
+
+Verified by installing from the README instructions (`pip install -e ".[dev]"`) into a
+clean Python 3.11 venv:
+
+```
+resolved:  pandas 2.3.3 / numpy 2.4.6
+pytest:    1 failed, 11 passed, 36 warnings   (the failure is item 2, same as the working venv)
+```
+
+Each pandas 2.x release was also run in its own scratch venv:
+
+| pandas | numpy | pytest | `gui.py:239` |
+|---|---|---|---|
+| 1.5.3 | 1.24.2 | 1 failed, 11 passed | works |
+| 2.0.3 | 1.26.4 | 1 failed, 11 passed | works, FutureWarning |
+| 2.1.4 | 1.26.4 | 1 failed, 11 passed | works, FutureWarning |
+| 2.2.3 | 1.26.4 | 1 failed, 11 passed | works, FutureWarning |
+| 2.2.3 | 2.4.6 | 1 failed, 11 passed | works, FutureWarning |
+| 2.3.3 | 2.4.6 | 1 failed, 11 passed | works, FutureWarning |
+| 3.0.6 | 2.4.6 | 3 passed, 9 errors | `TypeError` |
+
+Not tested:
+
+- pandas 2.0 to 2.2.1 with numpy 2 — pandas only supports numpy 2 from 2.2.2, and the
+  current floors allow the pairing
+- Python 3.12 or later — pandas 1.5.3 has no 3.12 wheel, but 2.x does, so a 3.12 install
+  resolves to 2.x
+
+The warnings on pandas 2.1 onwards mark what will break next under pandas 3:
+
+- `solver.py:368` and `solver.py:397-399` — `row[0]` on a Series is positional access,
+  deprecated; pandas 3 treats integer keys as labels
+- `gui.py:239` — `float()` of a one-element Series (item 1 correction)
+
+Original finding, added 2026-09-26. `pyproject.toml` sets floors but no ceilings, so `pip install -e ".[dev]"`
 into a clean venv now resolves **pandas 3.0.6 / numpy 2.4.6**. The working venv has pandas
 1.5.3, which is why the suite runs locally.
 
@@ -127,7 +169,7 @@ TypeError: Invalid value '0.0' for dtype 'str'        solver.py:204
 - `gui.py:239` raises `TypeError` on pandas 3 (item 1 correction).
 
 Decision needed: pin the dependencies, or support pandas 3. Exit criteria: the suite runs
-in a clean venv built from the README install instructions.
+in a clean venv built from the README install instructions. Decided 2026-09-27: pin.
 
 ---
 
