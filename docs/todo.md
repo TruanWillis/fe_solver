@@ -1,6 +1,7 @@
 # FEsolver — Work Items
 
 Findings from a full code review on 2026-07-31 (branch `develop`, commit `60d8757`).
+Items 31–40 added from a second review on 2026-09-26 (`develop` @ `50fd284`).
 Grouped by priority. Each item records **where**, **what's wrong**, and **how it was
 verified**, so it can be picked up cold.
 
@@ -15,6 +16,15 @@ Legend: `[ ]` open · `[x]` done · `[~]` in progress
 **Closed 2026-08-02.** All three call sites now read `results`, and plotting works on
 every example model. `gui.py:239` was given the same `.abs().max().max()` treatment.
 Remaining pre-migration reads are tracked separately as item 28.
+
+**Correction 2026-09-26:** `gui.py:239` was **not** changed — it still reads
+`float(self.s.results['element']['SM'].data.max())`. Works on pandas 1.5.3; on pandas 3
+`float()` of a Series raises `TypeError`. See item 31.
+
+**Correction 2026-09-27:** the point below saying it "would have broken on pandas 2.x" is
+wrong. It works on pandas 2.0.3, 2.1.4, 2.2.3 and 2.3.3, returning 22021.26 on
+`test_input_1.inp`. From 2.0 onwards it emits `FutureWarning: Calling float on a single
+element Series is deprecated`. It fails only on pandas 3.
 
 The "Plot results" button failed on every model on `develop`.
 
@@ -87,6 +97,79 @@ the model now matches what Abaqus would build.
 Where to look next: whether `162.464` was itself produced by a solver with a known bug, or
 whether the discrepancy is in the stress recovery. Items 4 and 6 are the nearest
 candidates.
+
+**Added 2026-09-26 — the offset is not specific to this test.** Every Abaqus comparison in
+the suite is off by a similar amount at full precision; the other tests pass only because
+they compare rounded values (item 38):
+
+```
+model 1  S e1 s1, s2, SM     rel.err  ~1e-6
+model 1  U n6 v / u          rel.err  -4.7e-4 / +2.6e-3
+model 2  S e7, SM e8, U n5   rel.err  -5.1e-4 to +6.9e-4
+model 3  S e2 s1 / s2        rel.err  -8.5e-4 / +7.4e-5
+model 3  SM e2, U n4 u / v   rel.err  -1.2e-4, -5.7e-4 / +7.8e-4
+```
+
+Produced by solving each fixture and printing `(actual - expected) / expected` for every
+value asserted in `tests/test_solver.py`.
+
+### [x] 31. A fresh install cannot solve any model
+
+**Closed 2026-09-27 by pinning.** `pyproject.toml` now requires `pandas>=1.5.3,<3`. No
+ceiling on numpy. pandas 3 is not supported; the code still breaks on it as described
+below.
+
+Verified by installing from the README instructions (`pip install -e ".[dev]"`) into a
+clean Python 3.11 venv:
+
+```
+resolved:  pandas 2.3.3 / numpy 2.4.6
+pytest:    1 failed, 11 passed, 36 warnings   (the failure is item 2, same as the working venv)
+```
+
+Each pandas 2.x release was also run in its own scratch venv:
+
+| pandas | numpy | pytest | `gui.py:239` |
+|---|---|---|---|
+| 1.5.3 | 1.24.2 | 1 failed, 11 passed | works |
+| 2.0.3 | 1.26.4 | 1 failed, 11 passed | works, FutureWarning |
+| 2.1.4 | 1.26.4 | 1 failed, 11 passed | works, FutureWarning |
+| 2.2.3 | 1.26.4 | 1 failed, 11 passed | works, FutureWarning |
+| 2.2.3 | 2.4.6 | 1 failed, 11 passed | works, FutureWarning |
+| 2.3.3 | 2.4.6 | 1 failed, 11 passed | works, FutureWarning |
+| 3.0.6 | 2.4.6 | 3 passed, 9 errors | `TypeError` |
+
+Not tested:
+
+- pandas 2.0 to 2.2.1 with numpy 2 — pandas only supports numpy 2 from 2.2.2, and the
+  current floors allow the pairing
+- Python 3.12 or later — pandas 1.5.3 has no 3.12 wheel, but 2.x does, so a 3.12 install
+  resolves to 2.x
+
+The warnings on pandas 2.1 onwards mark what will break next under pandas 3:
+
+- `solver.py:368` and `solver.py:397-399` — `row[0]` on a Series is positional access,
+  deprecated; pandas 3 treats integer keys as labels
+- `gui.py:239` — `float()` of a one-element Series (item 1 correction)
+
+Original finding, added 2026-09-26. `pyproject.toml` sets floors but no ceilings, so `pip install -e ".[dev]"`
+into a clean venv now resolves **pandas 3.0.6 / numpy 2.4.6**. The working venv has pandas
+1.5.3, which is why the suite runs locally.
+
+```
+clean venv:  3 passed, 9 errors
+TypeError: Invalid value '0.0' for dtype 'str'        solver.py:204
+```
+
+- The `"*"` sentinel at `solver.py:86` is now inferred as `str` dtype, so writing a
+  boundary value into it fails (item 14).
+- With `save_matrix` on — the default — `solver.py:163` also fails, writing `"e1"` into a
+  float column. The `except` from item 8 swallows it and assembly stops after the first
+  entry, leaving `[K]` almost empty.
+- `gui.py:239` raises `TypeError` on pandas 3 (item 1 correction).
+
+Decision needed: pin the dependencies, or support pandas 3. Exit criteria: the suite runs
+in a clean venv built from the README install instructions. Decided 2026-09-27: pin.
 
 ---
 
@@ -239,6 +322,58 @@ under-constrained model yields `inf`/`nan` propagating silently into the stress 
 
 Wanted: a pivot-magnitude check with a clear message — "model is under-constrained, check
 boundary conditions".
+
+### [ ] 32. Reaction forces wrong on displacement-driven models
+
+Added 2026-09-26. `reduce_matrix` overwrites `self.forces` with `K · d_prescribed`
+(`solver.py:228`), and `compute_reaction_forces` then subtracts it (`:322`). With no
+`*Cload` the true reaction is `K · d`. On `examples/plate_simple_disp.inp`:
+
+```
+max |RF| at free DOFs     reported 2.25e+04    true 4.5e-12
+node 9 (prescribed 3, 3)  reported [-12128.8, -12128.8]    true [34602, 34602]
+```
+
+Both sum to zero, so a sum check would not catch it. Force-driven models are correct.
+Re-check once item 4 lands, which changes how `forces` is built.
+
+### [ ] 33. Uppercase `GENERATE` silently builds the wrong set
+
+Added 2026-09-26. `model.py:103` and `:133` test `"generate" in lines[0]`, which is
+case-sensitive:
+
+```
+*Nset, nset=edge, generate   1, 9, 1   ->  [1, 2, 3, 4, 5, 6, 7, 8, 9]
+*Nset, nset=edge, GENERATE   1, 9, 1   ->  [1, 9]
+```
+
+`keywords.md` says keywords are case-insensitive. Abaqus/CAE writes lowercase, so CAE
+files are unaffected; hand-written and third-party files are not.
+
+### [ ] 34. Plot assumes nodes listed in order and numbered 1..N
+
+Added 2026-09-26.
+
+- **Listed out of order** — `plot.py:28` takes coordinates in `*Node` file order, while
+  displacements and connectivity (`:43`, `node - 1`) use node numbers. Worked example
+  with nodes listed 4, 3, 2, 1: element 1 is drawn at `(0,10), (10,10), (10,0)` instead of
+  `(0,0), (10,0), (10,10)`. Solver results are correct; only the plot is wrong.
+- **Numbered with gaps** — node 4 renamed 40 fails the solve with
+  `IndexError: boolean index did not match indexed array`. `data_structures.md` documents
+  the contiguous-numbering requirement; nothing enforces it with a clear message.
+
+### [ ] 35. Parser crashes with unhelpful messages
+
+Added 2026-09-26. Each of these fails with an error that does not name the input problem:
+
+| Input | Error |
+|---|---|
+| `*Boundary` line `1, 1` (last DOF omitted, valid Abaqus) | `IndexError` at `model.py:206` |
+| File ends on a data line, no keyword or comment after it | `IndexError` at `model.py:290` |
+| `*Cload` on a node that does not exist | `IndexError: boolean index did not match…` |
+| `*Cload` on a misspelled set name | `ValueError: invalid literal for int(): 'topedge'` |
+
+The `*Boundary` case could be folded into item 7.
 
 ---
 
@@ -400,7 +535,9 @@ lines of `pyproject.toml`.
 
 ### [ ] 17. Housekeeping
 
-- [ ] **Version drift across four places.** Re-checked 2026-08-02:
+- [x] **Version drift across four places.** Resolved at 0.2.3 — `pyproject.toml`,
+      `CHANGELOG.md` and the installed metadata all read `0.2.3` (checked 2026-09-26).
+      Re-checked 2026-08-02:
 
       ```
       installed metadata   0.2.0     ← what version("fe_solver") returns
@@ -418,6 +555,63 @@ lines of `pyproject.toml`.
       `license-files = ["LICENSE"]`. Verified in a built wheel:
       `License-Expression: MIT`, `License-File: LICENSE`, file present in the archive.
 - [ ] `solver.py:437` — `__main__` shadows the `model` module with the model dict
+
+### [ ] 36. `save_matrix` does not save the matrix
+
+Added 2026-09-26. With `save_matrix` on, the only file written is
+`outputs/displacements_matrix.csv` (`solver.py:179`), and it is written *before* the solve,
+so it holds `*` for every free DOF:
+
+```
+1u,0.0 | 1v,0.0 | 2u,* | 2v,0.0 | 3u,* | 3v,* | 4u,* | 4v,*
+```
+
+`global_stiffness_matrix_save` — which element contributed to each entry of `[K]` — is
+built during assembly (`:148-165`), doubling the loop work, but is never written or read.
+The README says the global stiffness matrix is saved to `stiffness_matrix.csv` (item 39).
+
+**Decision 2026-09-26: the save goes back in.**
+
+**History.** The save was lost in a refactor, not removed on purpose. Until `df139c0`
+(2026-03-17, "develop solver.py refactored and doc strings updated") the end of
+`define_global_stiffness` read:
+
+```python
+if self.save_matrix:
+    self.global_stiffness_matrix_save.to_csv(
+        self.out_dir / "stiffness_matrix.csv"
+    )
+    print("Saved to output: stiffness_matrix.csv")
+    print("Saved to output: displacement_matrix.csv")
+```
+
+The commit message does not mention it, and the record it wrote is still built. Found with
+`git log -S "to_csv" -- '*.py'`.
+
+Points for the restore:
+
+- **What the file holds.** `stiffness_matrix.csv` was the element-contribution record
+  (`"e1, e2"` per entry), not the numeric `[K]`. The numeric `[K]` was also saved until
+  `05ed8f5` (2024-09-22). The README now documents the contribution record only.
+- **pandas 3.** Writing `"e1"` into the float DataFrame copy fails under pandas 3 and item
+  8's `except` hides it (item 31). The restored save hits the same line.
+- **`displacements_matrix.csv`** is still written before the solve, so it holds `*` at
+  every free DOF. The old print suggests it was meant to sit alongside the matrix.
+  Undecided whether it moves after the solve.
+
+**The README already describes the restored behaviour** (changed 2026-09-26). Until this
+item lands, the README is ahead of the code.
+
+### [ ] 37. GUI threading and small defects
+
+Added 2026-09-26.
+
+- `gui.py:218` — the solver thread calls `self.plot_button.config()` directly. Tk
+  widgets are not safe to touch from another thread; the `finally` block already uses
+  `root.after` correctly.
+- `gui.py:228` — Plot is re-enabled even when the solve failed.
+- `gui.py:224`, `:250` — the function name is logged under the label `"Line:"`.
+- `gui.py:295` — `__main__` calls `gui(...)`, which does not exist.
 
 ---
 
@@ -463,6 +657,17 @@ No test currently asserts:
 - a displacement-driven model's residual
 - behaviour on a deliberately under-constrained model (item 12)
 
+### [ ] 38. Golden values compared by rounding, not tolerance
+
+Added 2026-09-26. `tests/test_solver.py` asserts `round(actual, n) == round(expected, n)`.
+That is not a tolerance — the outcome depends on where the two values fall relative to a
+rounding boundary. `162.326` vs `162.464` fails at one decimal place; a larger gap that
+does not straddle a boundary would pass. Several asserts are also near-vacuous, e.g.
+`round(1.38778e-17, 2)` is `0.0`.
+
+Every Abaqus comparison is off by roughly 5e-4 at full precision — table under item 2.
+Only the rounding keeps the other tests green.
+
 ---
 
 ## Documentation
@@ -492,6 +697,9 @@ boundary condition with a **zero prescribed value**, not to whether external loa
 
 **Tied to item 4**, which deletes `homogeneous_model` entirely. Cheaper to fix once, when
 that lands, than to correct the docs twice.
+
+*Update 2026-09-26:* §1 no longer uses either term. The remaining references are §5
+(`self.homogeneous_model`) and §7 (`apply_sign_correction`).
 
 ### [ ] 24. Rewrite `theory.md` §1 and §5 around static condensation
 
@@ -567,14 +775,17 @@ print('true   :', (m.cos(t)*s1, m.sin(t)*s1))"
 Documented as a limitation in [data_structures.md](data_structures.md) and
 [worked_example.md](worked_example.md) until fixed.
 
-### [ ] 27. Publish the documentation site
+### [x] 27. Publish the documentation site
+
+**Closed at 0.2.3.** Live at `https://truanwillis.github.io/fe_solver/`. The README link is
+still missing and is carried into item 39.
 
 Added 2026-08-02. `mkdocs.yml` and `.github/workflows/docs.yml` are in place; a build has
 been verified locally under `--strict` — 5 pages, no warnings. Remaining:
 
-- [ ] **Enable Pages.** Settings → Pages → Source: **GitHub Actions**. Nothing publishes
+- [x] **Enable Pages.** Settings → Pages → Source: **GitHub Actions**. Nothing publishes
       without it.
-- [ ] **Get current docs onto `main`.** The workflow builds on push to `main`, which is
+- [x] **Get current docs onto `main`.** The workflow builds on push to `main`, which is
       behind `develop`. Either merge `develop` first, or use Actions → Run workflow
       against `develop` for the initial deploy.
 - [ ] **Link the site from `README.md`** once live at
@@ -586,6 +797,44 @@ been verified locally under `--strict` — 5 pages, no warnings. Remaining:
 building and rewrites the 19 links pointing at them — 16 to `todo.md`, 2 to `roadmap.md`,
 1 to `examples/worked_example.inp` — to GitHub blob URLs. **Any new link to either file
 from a published doc needs the same treatment**, or `mkdocs build --strict` fails.
+
+### [ ] 39. Documentation out of step with the code
+
+Added 2026-09-26. Documentation-layer fixes, no engine change needed:
+
+- [x] `README.md` — `save_matrix` is described as saving `stiffness_matrix.csv`; it does
+      not (item 36). Done 2026-09-26: the README now describes the file as the
+      element-contribution record, on the basis that item 36 restores the save.
+- [x] `README.md` — the `LICENSE` link does not resolve on the site. MkDocs reports
+      "unrecognized relative link 'LICENSE', it was left as is"; `--strict` still passes.
+      Done 2026-09-26: now an absolute GitHub URL, which resolves in both places.
+- [x] `README.md` — link the live docs site (carried from item 27). Done 2026-09-26.
+- [x] `worked_example.md` §4 — shows `'AllElements'` / `'Steel'`; since item 5 these parse
+      as `'allelements'` / `'steel'`. Done 2026-09-26.
+- [x] `theory.md` §4 — says the heatmap comes from the element-contribution record. It is
+      drawn from the numeric `[K]` (`plot.py:136-140`). Done 2026-09-26.
+- [x] Explain that FEsolver's `S3` is plane-stress CST behaviour only. In Abaqus S3 is a
+      6-DOF shell and the plane-stress triangle is CPS3 — which is why CAE files constrain
+      DOFs 3–6. Done 2026-09-26 in `theory.md` §2 and `keywords.md` \*ELEMENT.
+- [x] `theory.md` §6 said including the known DOFs makes the system overdetermined. It is
+      square — each DOF has a known displacement or a known force (worked example: 8
+      equations, 5 free displacements + 3 reactions). Done 2026-09-26: sentence corrected;
+      the partitioned equations are left for item 24.
+
+### [x] 40. `theory.md` §8 presents the wrong principal angle as the maths
+
+**Closed 2026-09-26** (option b, author's call). The maths block now gives the standard
+`θ = ½ arctan(2τxy / (σxx - σyy))`, with a known-limitation note that the code snippet
+above it still uses `-0.5` and swaps sin/cos (item 26). When item 26 lands, remove the note
+and check the code snippet in §8 matches.
+
+Checked against the eigenvector of the stress tensor: for σxx=80, σyy=20, τxy=30 the true
+direction is 22.5°; `+½atan2` gives 22.5°, `-½atan2` gives 157.5°. The two agree only when
+τxy = 0.
+
+Added 2026-09-26. §8 gave `θ = -½ arctan(2τxy / (σxx - σyy))` in a maths block with no
+caveat. The sign is wrong (item 26). `data_structures.md` and `worked_example.md` carry a
+limitation note; `theory.md` did not.
 
 ---
 
@@ -607,6 +856,7 @@ Items **3, 4 and 7/12** change what the tool reports. Everything else is tidying
 3. Item 4 — static condensation rewrite
 4. Items 6, 7, 11, 12 — input validation with clear messages (for a training tool, the
    error messages *are* the curriculum)
-5. Item 5 — uppercase set names, then re-check item 2
+5. ~~Item 5 — uppercase set names, then re-check item 2~~ Done at 0.2.3 (lowercased);
+   item 2 narrowed but open
 6. Item 18 — patch test
 7. Item 13 — vectorise assembly

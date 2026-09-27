@@ -1,38 +1,42 @@
 # Keywords
 
-Reference for the `.inp` keywords FEsolver understands. The format follows Abaqus so that
-models are familiar, but FEsolver implements only the subset below — it is **not**
-Abaqus-compatible. See [theory.md](theory.md) for what the solver does with these inputs.
+This page lists the `.inp` keywords FEsolver reads. The format follows Abaqus so the input
+looks familiar, but FEsolver reads only the keywords below. It is not compatible with
+Abaqus. [theory.md](theory.md) explains what the solver does with the input.
 
-## How the input file is read
+## How FEsolver reads the input file
 
-- Lines beginning with a single `*` are keywords. Lines beginning with `**` are comments.
-- A keyword's data lines are every line following it up to the next `*`.
-- **Keywords not listed below are skipped silently** — `*Part`, `*Assembly`, `*Step`,
-  `*Output` and the rest of what Abaqus/CAE writes. This is why CAE files read directly.
-- Keyword, set and material names are all matched case-insensitively. Names are
-  lowercased when parsed, so `_PickedSet9` and `_PICKEDSET9` are one set, as in Abaqus.
-  Defining the same name twice adds to the set rather than replacing it.
+A line that starts with one `*` is a keyword. A line that starts with `**` is a comment.
+A keyword's data lines are all the lines after it, up to the next `*`.
+
+FEsolver skips any keyword not listed on this page, with no warning. This includes
+`*Part`, `*Assembly`, `*Step`, `*Output` and the other keywords Abaqus/CAE writes. This
+is why FEsolver can read CAE files directly.
+
+Keyword, set and material names are not case-sensitive. FEsolver changes them to lower
+case when it reads them, so `_PickedSet9` and `_PICKEDSET9` are the same set, as in
+Abaqus. If you define the same set name twice, FEsolver adds to the set instead of
+replacing it.
 
 | Keyword | Purpose |
 |---|---|
-| [\*BOUNDARY](#boundary) | Prescribe displacement constraints at nodes |
-| [\*CLOAD](#cload) | Apply concentrated forces at nodes |
-| [\*ELASTIC](#elastic) | Define linear elastic moduli |
-| [\*ELEMENT](#element) | Define elements by their nodes |
-| [\*ELSET](#elset) | Assign elements to an element set |
-| [\*MATERIAL](#material) | Begin a material definition |
-| [\*NODE](#node) | Define nodes by their coordinates |
-| [\*NSET](#nset) | Assign nodes to a node set |
-| [\*SHELL SECTION](#shell-section) | Define section thickness and material |
+| [\*BOUNDARY](#boundary) | Sets displacement constraints at nodes |
+| [\*CLOAD](#cload) | Applies concentrated forces at nodes |
+| [\*ELASTIC](#elastic) | Defines linear elastic properties |
+| [\*ELEMENT](#element) | Defines elements by their nodes |
+| [\*ELSET](#elset) | Assigns elements to an element set |
+| [\*MATERIAL](#material) | Starts a material definition |
+| [\*NODE](#node) | Defines nodes by their coordinates |
+| [\*NSET](#nset) | Assigns nodes to a node set |
+| [\*SHELL SECTION](#shell-section) | Defines section thickness and material |
 
 ---
 
 ## \*BOUNDARY
 
-Prescribe boundary conditions at nodes. No parameters.
+Sets displacement constraints at nodes. It has no parameters.
 
-**Data lines** — repeat as necessary:
+Data lines, repeated as needed:
 
 ```
 Node number or node set label
@@ -41,25 +45,28 @@ Last degree of freedom constrained
 Boundary value (only for a nonzero boundary condition)
 ```
 
-DOF `1` is translation in x, `2` is translation in y.
+Degree of freedom (DOF) 1 is translation in x. DOF 2 is translation in y.
 
-**Limitations** — see item 7 in [todo.md](todo.md):
+Each data line constrains one DOF, so the first and last DOF must be the same. If you give
+a range, such as `7, 1, 2`, FEsolver ignores the line and gives no error. The model is then
+under-constrained. See item 7 in [todo.md](todo.md).
 
-- Only a **single** DOF per data line is applied; the first and last fields must be equal.
-  A range such as `7, 1, 2` is accepted by the parser but **silently ignored**, leaving
-  the model under-constrained.
-- Only DOFs `1` and `2` exist in a 2D plane-stress model. Higher values written by
-  Abaqus/CAE (`3` to `6`) are ignored.
-- `ENCASTRE` and `PINNED` are **not supported** and raise an error. Constrain each DOF
-  explicitly.
+You must give the last DOF. A line such as `7, 1` is valid in Abaqus, but FEsolver stops
+with an `IndexError` that does not name the problem. See item 35.
+
+A 2D plane-stress model has DOFs 1 and 2 only. FEsolver ignores DOFs 3 to 6, which
+Abaqus/CAE writes.
+
+FEsolver does not support `ENCASTRE` or `PINNED`, and stops with an error if you use them.
+Constrain each DOF on its own line instead.
 
 [Back to top](#keywords)
 
 ## \*CLOAD
 
-Apply concentrated forces at nodes. No parameters.
+Applies concentrated forces at nodes. It has no parameters.
 
-**Data lines** — repeat as necessary:
+Data lines, repeated as needed:
 
 ```
 Node number or node set label
@@ -67,18 +74,21 @@ Degree of freedom
 Load magnitude
 ```
 
-DOF `1` is force in x, `2` is force in y.
+DOF 1 is force in x. DOF 2 is force in y.
 
-If a node set is named, the magnitude is applied to **every node in the set** — it is not
-divided between them.
+If you name a node set, FEsolver applies the full magnitude to every node in the set. It
+does not divide the load between them.
+
+If the node or set does not exist, FEsolver stops with an error that does not name the
+problem. Check the spelling. See item 35 in [todo.md](todo.md).
 
 [Back to top](#keywords)
 
 ## \*ELASTIC
 
-Define linear elastic moduli. No parameters.
+Defines linear elastic properties. It has no parameters.
 
-**Data line:**
+Data line:
 
 ```
 Young's modulus, E
@@ -89,11 +99,11 @@ Poisson's ratio
 
 ## \*ELEMENT
 
-Define elements by giving their nodes.
+Defines elements by their nodes.
 
-**Required parameter:** `TYPE` — the element type. Only **S3** is available.
+Required parameter: `TYPE`, the element type. `S3` is the only type available.
 
-**Data lines** — repeat as necessary:
+Data lines, repeated as needed:
 
 ```
 Element number
@@ -102,24 +112,28 @@ Second node number
 Third node number
 ```
 
-> **`ELSET` is not supported on this keyword.** `*Element, type=S3, elset=PLATE` causes the
-> type to be read as `s3, elset`, which fails with `KeyError: 's3, elset'` when the element
-> stiffness matrix is built. Define the set separately with [\*ELSET](#elset).
+FEsolver treats `S3` as a plane-stress constant strain triangle (CST) with 2 DOFs at each
+node. In Abaqus, S3 is a shell element with 6 DOFs at each node, and the plane-stress
+triangle is CPS3. FEsolver does not read `CPS3`.
+
+Do not add `ELSET` to this keyword. FEsolver reads `*Element, type=S3, elset=PLATE` as type
+`s3, elset`, then stops with `KeyError: 's3, elset'` when it builds the element stiffness
+matrix. Define the set separately with [\*ELSET](#elset).
 
 [Back to top](#keywords)
 
 ## \*ELSET
 
-Assign elements to an element set.
+Assigns elements to an element set.
 
-**Required parameter:** `ELSET` — the name of the set.
+Required parameter: `ELSET`, the name of the set.
 
-**Optional parameter:** `GENERATE` — data lines give a first element, a last element and an
-integer increment; all elements from first to last in those steps are added.
+Optional parameter: `GENERATE`. Each data line then gives a first element, a last element
+and an increment, and FEsolver adds every element in that range.
 
-**Data lines** without `GENERATE` — a list of elements, repeated as necessary.
+Without `GENERATE`, each data line is a list of elements. Repeat the line as needed.
 
-**Data lines** with `GENERATE`:
+With `GENERATE`, each data line is:
 
 ```
 First element in set
@@ -127,31 +141,34 @@ Last element in set
 Increment (default 1)
 ```
 
-> **Nested sets are not supported.** Naming a previously defined element set inside another
-> set's data line is **silently ignored** — only numeric entries are kept. The same applies
-> to [\*NSET](#nset).
+Write `generate` in lower case. FEsolver does not recognise `GENERATE` in upper case. It
+reads the line as a list instead, so `1, 8, 1` gives elements 1 and 8 only, with no
+warning. See item 33 in [todo.md](todo.md).
+
+FEsolver does not support nested sets. If a data line names another set, FEsolver ignores
+the name with no warning and keeps only the element numbers. The same applies to
+[\*NSET](#nset).
 
 [Back to top](#keywords)
 
 ## \*MATERIAL
 
-Begin a material definition.
+Starts a material definition.
 
-**Required parameter:** `NAME` — the label used to refer to the material. Names must be
-unique.
+Required parameter: `NAME`, the label for the material. Names must be unique.
 
-> **Only one material is supported.** The name is recorded but never linked to a section or
-> to elements, and the properties from every [\*ELASTIC](#elastic) block are collected into
-> a single list. If a second material is defined, **all elements silently use the first**.
-> See item 11 in [todo.md](todo.md).
+FEsolver supports one material only. It records the name but does not link it to a section
+or to elements. It collects the values from every [\*ELASTIC](#elastic) block into one
+list. If you define a second material, every element uses the first one, with no warning.
+See item 11 in [todo.md](todo.md).
 
 [Back to top](#keywords)
 
 ## \*NODE
 
-Define nodes by their coordinates. No parameters.
+Defines nodes by their coordinates. It has no parameters.
 
-**Data lines** — repeat as necessary:
+Data lines, repeated as needed:
 
 ```
 Node number
@@ -159,28 +176,30 @@ First coordinate
 Second coordinate
 ```
 
-A third coordinate may be present — Abaqus/CAE writes one even for 2D models — and is
-ignored. FEsolver is 2D plane-stress only.
+Abaqus/CAE writes a third coordinate, even for 2D models. FEsolver ignores it, because it
+is 2D plane-stress only.
 
-> **`NSET` is not supported on this keyword.** `*Node, nset=PLATE` is accepted but the
-> parameter is **silently ignored** — no node set is created. Define the set separately
-> with [\*NSET](#nset).
+Number the nodes from 1 with no gaps, and list them in order. If you do not, the solve
+fails or the plot draws the mesh wrongly. See item 34 in [todo.md](todo.md).
+
+FEsolver ignores the `NSET` parameter on this keyword, with no warning. `*Node, nset=PLATE`
+creates no node set. Define the set separately with [\*NSET](#nset).
 
 [Back to top](#keywords)
 
 ## \*NSET
 
-Assign nodes to a node set. Node sets are how boundary conditions and loads are applied
-to groups of nodes.
+Assigns nodes to a node set. Boundary conditions and loads use node sets to act on groups
+of nodes.
 
-**Required parameter:** `NSET` — the name of the set.
+Required parameter: `NSET`, the name of the set.
 
-**Optional parameter:** `GENERATE` — data lines give a first node, a last node and an
-integer increment; all nodes from first to last in those steps are added.
+Optional parameter: `GENERATE`. Each data line then gives a first node, a last node and an
+increment, and FEsolver adds every node in that range.
 
-**Data lines** without `GENERATE` — a list of nodes, repeated as necessary.
+Without `GENERATE`, each data line is a list of nodes. Repeat the line as needed.
 
-**Data lines** with `GENERATE`:
+With `GENERATE`, each data line is:
 
 ```
 First node in set
@@ -188,32 +207,35 @@ Last node in set
 Increment (default 1)
 ```
 
-> **Set names are case-insensitive.** `_PickedSet9` and `_PICKEDSET9` are the same set, as
-> in Abaqus. Repeating a name adds its nodes to the existing set rather than replacing it.
+Write `generate` in lower case. With `GENERATE` in upper case, `1, 9, 1` gives nodes 1 and
+9 only, with no warning. See item 33 in [todo.md](todo.md).
+
+Set names are not case-sensitive. `_PickedSet9` and `_PICKEDSET9` are the same set, as in
+Abaqus. If you repeat a name, FEsolver adds the nodes to the existing set.
 
 [Back to top](#keywords)
 
 ## \*SHELL SECTION
 
-Define a shell cross-section.
+Defines a shell section.
 
-**Required parameters:**
+Required parameters:
 
-- `ELSET` — the element set the section applies to.
-- `MATERIAL` — the material the shell is made of.
+- `ELSET`: the element set the section applies to
+- `MATERIAL`: the material the shell is made of
 
-> The element set name is recorded but **not acted on** — the thickness below is applied to
-> *every* element in the model, not just those in the named set. Sets defined with
-> [\*ELSET](#elset) are parsed but never read by the solver.
+FEsolver records the element set name but does not use it. It applies the thickness to
+every element in the model, not only the elements in the named set. Sets defined with
+[\*ELSET](#elset) are read but never used by the solver.
 
-**Data line** — required:
+Data line, required:
 
 ```
 Shell thickness
 ```
 
-Used directly in the element stiffness calculation, `[Kᵉ] = [B]ᵀ[D][B] · A · t`.
-Abaqus/CAE writes a second value on this line (integration points through the thickness);
-it is ignored.
+FEsolver uses the thickness in the element stiffness calculation,
+`[Kᵉ] = [B]ᵀ[D][B] · A · t`. Abaqus/CAE writes a second value on this line, the number of
+integration points through the thickness. FEsolver ignores it.
 
 [Back to top](#keywords)
