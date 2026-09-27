@@ -1,115 +1,111 @@
-# Finite Element Analysis: Theory and Process
+# Finite element analysis: theory and process
 
-This document explains what FEsolver does at each step and why. It is written for
-engineers who use FEA but may not remember the underlying theory. Equations appear in
-marked blocks that can be skipped without losing the thread.
+This page explains what FEsolver does at each step of the finite element method, and why.
+The maths is in separate blocks that you can skip.
 
-Code references point to `solver.py`, `direct_solver.py`, and `elements.py`.
-A companion [worked example](worked_example.md) follows a two-element model from the
-`.inp` file to final stresses with numbers at every step.
+Code references are to `solver.py`, `direct_solver.py` and `elements.py`.
+[worked_example.md](worked_example.md) follows a 2-element model from the `.inp` file to
+the final stresses, with the numbers at every step.
 
 ---
 
 ## Contents
 
-1. [What Does FEA Actually Do?](#1-what-does-fea-actually-do)
-2. [The Mesh: Elements and DOFs](#2-the-mesh-elements-and-dofs)
-3. [Element Stiffness](#3-element-stiffness)
+1. [How FEA works](#1-how-fea-works)
+2. [The mesh: elements and DOFs](#2-the-mesh-elements-and-dofs)
+3. [Element stiffness](#3-element-stiffness)
 4. [Assembly](#4-assembly)
-5. [Boundary Conditions and Loads](#5-boundary-conditions-and-loads)
-6. [Reducing the System](#6-reducing-the-system)
-7. [Solving for Displacements](#7-solving-for-displacements)
+5. [Boundary conditions and loads](#5-boundary-conditions-and-loads)
+6. [Reducing the system](#6-reducing-the-system)
+7. [Solving for displacements](#7-solving-for-displacements)
 8. [Stresses](#8-stresses)
 9. [Summary](#9-summary)
 
 ---
 
-## 1. What Does FEA Actually Do?
+## 1. How FEA works
 
 ### The governing equations
 
 Elasticity theory describes how a loaded structure deforms. The governing equations are
-the same for every linear elastic problem — what changes between problems is the
-geometry, material properties, and boundary conditions.
+the same for every linear elastic problem. Only the geometry, material properties and
+boundary conditions change.
 
-The equations express a simple requirement: at every point inside the structure, the
-internal stresses must be in equilibrium. Take a tiny element of material (a small
-square in 2D, a cube in 3D). Stress acts on all its faces. The equilibrium equations say
-that the stresses on opposite faces must balance — if they don't, that element of
-material would accelerate, which cannot happen in a static problem.
+The equations require the internal stresses to be in equilibrium at every point in the
+structure. Take a small element of material: a square in 2D, or a cube in 3D. Stress acts
+on all its faces, and the stresses on opposite faces must balance. If they did not, the
+element would accelerate, which cannot happen in a static problem.
 
-Stress is rarely uniform across a structure. Near a hole it is higher, far from a load it
-is lower. If stress varies from one side of the tiny element to the other, the rate of
-that variation must be accounted for. The equilibrium equations govern exactly this: how
-stress is allowed to vary spatially.
+Stress is not usually uniform. It is higher near a hole and lower far from a load. If
+stress varies across the small element, the equilibrium equations must account for that
+variation. They set how stress can vary from point to point.
 
-> **The maths.** In 2D, equilibrium in the x and y directions gives two equations:
+> The maths: in 2D, equilibrium in the x and y directions gives 2 equations:
 >
 > ```
 > (rate of change of σxx in x) + (rate of change of τxy in y) + body force in x = 0
 > (rate of change of τxy in x) + (rate of change of σyy in y) + body force in y = 0
 > ```
 
-These two equations contain three unknowns (σxx, σyy, τxy). To close the system, stress
-is expressed in terms of strain (via the material law), and strain is expressed in terms
-of displacement (strain is the change in displacement per unit length). After
-substitution the only unknowns are the displacement functions u(x,y) and v(x,y).
+These 2 equations have 3 unknowns: σxx, σyy and τxy. To close the system, stress is
+written in terms of strain through the material law. Strain is written in terms of
+displacement, as the change in displacement per unit length. After substitution, the only
+unknowns are the displacement functions u(x,y) and v(x,y).
 
-The result is a **partial differential equation (PDE)**: the unknowns are continuous
-functions of x and y, and the equations involve how those functions change in both
-directions simultaneously. The solution must satisfy these equations at every point
-inside the structure, on whatever geometry you give it.
+The result is a partial differential equation (PDE). The unknowns are continuous functions
+of x and y, and the equations involve how they change in both directions. The solution
+must satisfy the equations at every point inside the structure.
 
-For simple shapes — a uniform bar, a hole in an infinite plate, a thin beam — the PDEs
-can be solved exactly. These are the textbook formulae engineers already know. For
-anything with realistic geometry they cannot.
+For simple shapes, such as a uniform bar, a hole in an infinite plate or a thin beam, the
+PDEs can be solved exactly. These solutions are the textbook formulae. For realistic
+geometry, they cannot.
 
-### How FEA converts the PDE into simultaneous equations
+### From the PDE to simultaneous equations
 
-FEA makes two moves:
+FEA makes 2 approximations:
 
-**Finite unknowns.** Instead of a continuous displacement function defined everywhere,
-assume displacement varies linearly within each element and track values only at the
-nodes. A 500-node mesh has 1000 unknowns (two DOFs per node) instead of infinitely many.
+1. Finite unknowns: displacement is assumed to vary linearly within each element, and is
+   tracked only at the nodes. A 500-node mesh has 1,000 unknowns, because each node has 2
+   degrees of freedom (DOFs).
+2. Finite equations: equilibrium is enforced at every node instead of at every point. At
+   each node, the internal forces from the connected elements must balance the applied
+   external force.
 
-**Finite equations.** Instead of enforcing equilibrium at every point, enforce it at every
-node. At each node the internal forces from the surrounding elements must balance the
-applied external force. The internal force at a node comes from the stresses in its
-connected elements, which come from strains (via `[D]`), which come from nodal
-displacements (via `[B]`). So the internal force at each node is a linear combination of
-the nodal displacements — which is exactly what one row of `[K]{u} = {F}` says.
+The internal force at a node comes from the stresses in the connected elements. The
+stresses come from strains through `[D]`, and the strains come from nodal displacements
+through `[B]`. So the internal force at each node is a linear combination of the nodal
+displacements. Each row of `[K]{u} = {F}` states this for one DOF.
 
-One DOF, one equation, one row. The PDE has become a system of simultaneous equations:
+The PDE becomes a system of simultaneous equations:
 
 ```
 [K]{u} = {F}
 ```
 
-- **`[K]`** — the **stiffness matrix**. Encodes how stiff the structure is: push here,
-  how much does it deflect there.
-- **`{u}`** — the **displacement vector**. The unknown nodal displacements.
-- **`{F}`** — the **force vector**. The applied loads.
+- `[K]` is the stiffness matrix. It relates the nodal forces to the nodal displacements.
+- `{u}` is the displacement vector, the unknown nodal displacements.
+- `{F}` is the force vector, the applied loads.
 
-The approximation improves as elements get smaller and nodes get closer together. With a
-fine enough mesh the solution converges toward the exact PDE answer.
+The approximation improves as the elements get smaller. With a fine enough mesh, the
+solution converges towards the exact PDE solution.
 
-Everything the solver does is either building `[K]` and `{F}`, or solving for `{u}`.
+### Force-driven and displacement-driven models
 
-### Force-driven vs displacement-driven
+FEsolver supports 2 kinds of model:
 
-FEsolver supports both:
+- force-driven: external forces are applied at nodes, and the solver finds the
+  displacements
+- displacement-driven: displacements are prescribed at nodes, and the solver finds the
+  remaining free displacements
 
-**Force-driven:** external forces applied at nodes, solver finds displacements.
-
-**Displacement-driven:** known displacements prescribed at nodes, solver finds the
-remaining free displacements. Common in displacement-controlled testing or when boundary
-motion is known from another analysis.
+Displacement-driven models are common in displacement-controlled testing, or when the
+boundary motion is known from another analysis.
 
 ---
 
-## 2. The Mesh: Elements and DOFs
+## 2. The mesh: elements and DOFs
 
-FEsolver uses the **S3 element** — a flat triangle defined by three corner nodes.
+FEsolver uses the S3 element, a flat triangle with 3 corner nodes.
 
 ```
         k
@@ -119,12 +115,15 @@ FEsolver uses the **S3 element** — a flat triangle defined by three corner nod
     i-------j
 ```
 
-Each node has two **degrees of freedom (DOFs)**: horizontal displacement `u` and
-vertical displacement `v`. One element has `3 × 2 = 6` DOFs:
-`{u_i, v_i, u_j, v_j, u_k, v_k}`.
+FEsolver treats S3 as a plane-stress constant strain triangle (CST). This is not the same
+as the Abaqus S3, which is a shell element with 6 DOFs at each node. The Abaqus element that
+matches FEsolver's S3 is CPS3.
 
-For a mesh with n nodes the model has 2n DOFs total. In the code, DOFs are labelled by
-node number and direction — node 3 has `3u` and `3v`:
+Each node has 2 DOFs: horizontal displacement `u` and vertical displacement `v`. One
+element has `3 × 2 = 6` DOFs: `{u_i, v_i, u_j, v_j, u_k, v_k}`.
+
+A mesh with n nodes has 2n DOFs. In the code, each DOF is labelled with its node number and
+direction, so node 3 has `3u` and `3v`:
 
 ```python
 self.node_headings = [
@@ -134,37 +133,36 @@ self.node_headings = [
 
 ### Displacement inside an element
 
-The mesh only tracks displacements at the nodes. Displacement at any interior point is
-**linearly interpolated** from the three corner values using **shape functions**
-`N_i`, `N_j`, `N_k`:
+The mesh tracks displacement only at the nodes. At any point inside an element,
+displacement is linearly interpolated from the 3 corner values, using the shape functions
+`N_i`, `N_j` and `N_k`:
 
 - `N_i = 1` at node i, `0` at nodes j and k
 - `N_j = 1` at node j, `0` at nodes i and k
 - `N_k = 1` at node k, `0` at nodes i and j
 
-At any interior point, `N_i + N_j + N_k = 1`.
+At any point inside the element, `N_i + N_j + N_k = 1`.
 
 ### Constant strain
 
-Because displacement varies linearly, strain — the change in displacement per unit
-length — is **constant** within each element. The slope of a straight line is the same
-everywhere. Stress is therefore also uniform within each element.
+Displacement varies linearly, so strain, the change in displacement per unit length, is
+constant within each element. Stress is therefore also uniform within each element.
 
-This is an approximation. Near stress concentrations (holes, notches, re-entrant
-corners) the mesh needs to be fine enough to capture the gradient across multiple
-elements.
+This is an approximation. Near stress concentrations, such as holes, notches and
+re-entrant corners, the mesh must be fine enough to capture the stress gradient across
+several elements.
 
 ---
 
-## 3. Element Stiffness
+## 3. Element stiffness
 
-### What `[Kᵉ]` represents
+### What `[Kᵉ]` is
 
-The element stiffness matrix is a `6 × 6` matrix relating nodal forces to nodal
-displacements for one element. Entry `(i, j)` is the force at DOF i produced by a unit
-displacement at DOF j with all other DOFs held fixed.
+The element stiffness matrix is a `6 × 6` matrix that relates nodal forces to nodal
+displacements for one element. Entry `(i, j)` is the force at DOF i caused by a unit
+displacement at DOF j, with all other DOFs held fixed.
 
-In FEsolver, element stiffness matrices are computed in `elements.py`:
+`elements.py` calculates the element stiffness matrices:
 
 ```python
 cst = elements.Element(
@@ -177,70 +175,69 @@ cst = elements.Element(
 self.model["elements"][element_number]["K"] = cst
 ```
 
-### `[B]` — the strain-displacement matrix
+### `[B]`, the strain-displacement matrix
 
-`[B]` maps the six nodal displacements to the three strain components inside the
-element: εxx (horizontal stretch), εyy (vertical stretch), and γxy (shear). Its entries
-come from the element geometry — the node positions determine how nodal displacements
-translate into strain.
+`[B]` converts the 6 nodal displacements into the 3 strain components in the element: εxx
+(horizontal stretch), εyy (vertical stretch) and γxy (shear). Its entries depend on the
+element geometry.
 
-Because S3 shape functions are linear, `[B]` is constant across the element. It is a
+The S3 shape functions are linear, so `[B]` is constant across the element. It is a
 `3 × 6` matrix.
 
-> **The maths.** `{ε} = [B]{uᵉ}`. The entries of `[B]` are the spatial derivatives
-> of the shape functions — constants determined by the node coordinates.
+> The maths: `{ε} = [B]{uᵉ}`. The entries of `[B]` are the spatial derivatives of the
+> shape functions. They are constants set by the node coordinates.
 
-### `[D]` — the material matrix
+### `[D]`, the material matrix
 
-`[D]` converts strain into stress. It is built from two material properties:
+`[D]` converts strain into stress. It uses 2 material properties:
 
-- **Young's modulus E** — material stiffness. Higher E means larger stresses for the
-  same strain.
-- **Poisson's ratio ν** — lateral coupling. Stretch a material in x and it contracts
-  in y. ν controls how much. For steel, ν ≈ 0.3. If ν = 0 the axes are independent.
+- Young's modulus E, the material stiffness: a higher E gives more stress for the same
+  strain
+- Poisson's ratio ν, the lateral coupling: a material stretched in x contracts in y, and ν
+  sets how much. For steel, ν ≈ 0.3. If ν = 0, the axes are independent
 
-FEsolver uses the **plane stress** form of `[D]`, valid for thin plates where
+FEsolver uses the plane stress form of `[D]`. It applies to thin plates, where the
 out-of-plane stress is zero.
 
-> **The maths.**
+> The maths:
 > ```
 > [D] = E/(1-ν²) × | 1    ν        0     |
 >                   | ν    1        0     |
 >                   | 0    0    (1-ν)/2   |
 > ```
 
-### Computing `[Kᵉ]`
+### Calculating `[Kᵉ]`
 
-The stiffness matrix chains geometry and material together: displacement → strain
-(via `[B]`) → stress (via `[D]`) → nodal forces. For an S3 element with area A and
-thickness t:
+The stiffness matrix links geometry and material. Displacement gives strain through `[B]`,
+strain gives stress through `[D]`, and stress gives nodal forces. For an S3 element with
+area A and thickness t:
 
 ```
 [Kᵉ] = [B]ᵀ [D] [B] × A × t
 ```
 
-Because `[B]` and `[D]` are both constant across the element, this reduces to a single
-matrix multiplication:
+`[B]` and `[D]` are both constant across the element, so this is a single matrix
+multiplication:
 
 ```python
 element_stiffness = np.matmul(Bt, np.matmul(self.D, self.B)) * self.area * self.t
 ```
 
-The result is a `6 × 6` symmetric matrix.
+The result is a symmetric `6 × 6` matrix.
 
 ---
 
 ## 4. Assembly
 
-Each `[Kᵉ]` describes one element in isolation. The **global stiffness matrix** `[K]`
-combines them into a single system representing the entire structure.
+Each `[Kᵉ]` describes one element on its own. The global stiffness matrix `[K]` combines
+them into one system for the whole structure.
 
-At shared nodes, contributions from every connected element are **added together**. This
-enforces **compatibility** — the mesh deforms as one connected piece, not a collection
-of independent triangles.
+At a shared node, FEsolver adds together the contributions from every connected element.
+This enforces compatibility: the mesh deforms as one connected piece, not as separate
+triangles.
 
-For a mesh with n nodes, `[K]` is `2n × 2n`, initialised to zero. Each element's
-`6 × 6` entries are added at the rows and columns matching that element's DOFs:
+For a mesh with n nodes, `[K]` is `2n × 2n` and starts at zero. FEsolver adds each
+element's `6 × 6` entries at the rows and columns for that element's DOFs:
 
 ```python
 self.global_stiffness_matrix = pd.DataFrame(
@@ -259,37 +256,38 @@ for element_number, element_data in self.model["elements"].items():
             ] += element_stiffness_matrix.at[row, col]
 ```
 
-The element stiffness matrices carry DOF labels (`1u`, `1v`, `2u`, ...) matching the
-global matrix, so assembly is a direct label-to-label addition with no index mapping.
+The element stiffness matrices use the same DOF labels as the global matrix: `1u`, `1v`,
+`2u` and so on. Assembly adds entries by label, with no index mapping.
 
 ### Stiffness matrix heatmap
 
-When `save_matrix = True`, FEsolver records which elements contribute to each position
-in `[K]`, producing the heatmap in the GUI. Dense diagonal blocks indicate nodes with
-many element connections; off-diagonal entries show which nodes are linked through shared
-elements.
+When `save_matrix` is `true`, FEsolver records which elements contribute to each entry of
+`[K]`. It also plots `[K]` as a heatmap in the GUI, shaded by the size of each entry. Dense
+blocks on the diagonal show nodes with many element connections. Off-diagonal entries show
+which nodes share an element.
 
 ---
 
-## 5. Boundary Conditions and Loads
+## 5. Boundary conditions and loads
 
 ### Boundary conditions
 
-Boundary conditions fix specific DOFs. A fully fixed node has both u and v set to 0. A
-roller might fix v while leaving u free.
+Boundary conditions fix specific DOFs. A fully fixed node has u and v both set to 0. A
+roller might fix v and leave u free.
 
-The displacement vector `{u}` starts with `"*"` at every DOF (unknown). Boundary
-conditions overwrite specific entries with known values — typically `0.0` for fixed
-supports, or a prescribed non-zero value for displacement-driven models.
+The displacement vector `{u}` starts with `"*"` at every DOF to mark it as unknown.
+Boundary conditions replace specific entries with known values. These are usually `0.0`
+for fixed supports, or a prescribed non-zero value in a displacement-driven model.
 
 ### Loads
 
-For force-driven models, applied forces are written into `{F}` at the relevant DOFs.
+In a force-driven model, FEsolver writes the applied forces into `{F}` at the relevant
+DOFs.
 
 ### Code
 
-Both are applied by `assemble_dof_series()`, which reads definitions from the `.inp`
-file and writes each value into the correct DOF:
+`assemble_dof_series()` applies both. It reads the definitions from the `.inp` file and
+writes each value into the correct DOF:
 
 ```python
 def assemble_dof_series(self, series, condition):
@@ -308,33 +306,36 @@ def assemble_dof_series(self, series, condition):
                 series.at[f"{n}{direction}"] = value
 ```
 
-Axis `"1"` is x (u), `"2"` is y (v), following the Abaqus `.inp` convention. A
-definition can name a single node or a node set.
+Axis `"1"` is x (u) and `"2"` is y (v), as in Abaqus `.inp` files. A definition can name a
+single node or a node set.
 
-If no loads are defined, the model is treated as displacement-driven and
-`self.homogeneous_model` is set to `False`.
+If there are no loads, FEsolver treats the model as displacement-driven and sets
+`self.homogeneous_model` to `False`.
 
-> **Known limitation.** Force-driven and displacement-driven are currently mutually
-> exclusive — a model with both silently ignores the prescribed displacements. See items
-> 4, 23 and 24 in [todo.md](todo.md).
+> Known limitation: a model cannot currently be both force-driven and displacement-driven.
+> If a model has both, FEsolver ignores the prescribed displacements with no warning. See
+> items 4, 23 and 24 in [todo.md](todo.md).
 
 ---
 
-## 6. Reducing the System
+## 6. Reducing the system
 
-The full system `[K]{u} = {F}` includes both known (constrained) and unknown (free)
-DOFs. Including the known DOFs makes the system overdetermined.
+The full system `[K]{u} = {F}` includes both known (constrained) and unknown (free) DOFs.
+Each DOF has either a known displacement or a known force, not both. At a free DOF, the
+displacement is unknown and the force is known. At a constrained DOF, the displacement is
+known and the force, the reaction, is unknown. So the full system cannot be solved as
+written.
 
-Without boundary conditions `[K]` is also **singular** — nothing prevents rigid body
-motion, so no unique solution exists. Constraining enough DOFs eliminates this.
+Without boundary conditions, `[K]` is also singular. Nothing stops rigid body motion, so
+there is no unique solution. Constraining enough DOFs removes this.
 
-FEsolver identifies free DOFs using a boolean mask:
+FEsolver finds the free DOFs with a boolean mask:
 
 ```python
 mask = self.model["active_mask"]  # True = free, False = constrained
 ```
 
-The free rows/columns of `[K]` and entries of `{F}` are extracted:
+It then takes the free rows and columns of `[K]` and the free entries of `{F}`:
 
 ```python
 self.global_stiffness_matrix_reduced = global_stiffness_matrix[np.ix_(mask, mask)]
@@ -343,7 +344,7 @@ forces_reduced = forces[mask]
 
 ### Displacement-driven reduction
 
-For displacement-driven models, `{F}` is not given directly. The solver computes the
+In a displacement-driven model, `{F}` is not given directly. The solver calculates
 equivalent forces from the prescribed displacements:
 
 ```python
@@ -351,11 +352,11 @@ displacements = np.where(displacements == "*", 0.0, displacements).astype(np.flo
 forces = np.dot(stiffness_matrix, displacements)
 ```
 
-The free DOFs are then extracted and solved as normal.
+It then takes the free DOFs and solves as normal.
 
 ---
 
-## 7. Solving for Displacements
+## 7. Solving for displacements
 
 The reduced system is:
 
@@ -363,19 +364,19 @@ The reduced system is:
 [K_ff]{u_f} = {F_f}
 ```
 
-A system of simultaneous equations — the same kind solved in school when two equations
-share two unknowns, except here there may be hundreds or thousands. FEsolver provides
-two methods, selectable via `fe_solver = True/False` in `config_user.json`.
+This is a set of simultaneous equations, with up to thousands of unknowns. FEsolver has 2
+methods. Choose one with `fe_solver` in `config_user.json`.
 
 ### Method 1: Gaussian elimination (`fe_solver = True`)
 
-Implemented in `direct_solver.py`. Works in two phases.
+`direct_solver.py` solves the system in 2 phases: forward elimination, then back
+substitution.
 
 #### Forward elimination
 
-Transforms the system into upper triangular form by eliminating entries below the
-diagonal, column by column. For each column, a multiple of the current row is subtracted
-from every row below it to zero out that column's entry:
+Forward elimination turns the system into upper triangular form, one column at a time.
+For each column, it subtracts a multiple of the current row from every row below it. This
+makes the entries below the diagonal zero:
 
 ```python
 def forward_elimination(self):
@@ -402,9 +403,9 @@ After elimination:
 
 #### Partial pivoting
 
-The elimination divides by the diagonal entry. If it is zero the division fails; if it
-is very small it amplifies rounding errors. Partial pivoting swaps the current row with
-whichever row below has the largest absolute value in that column:
+Elimination divides by the diagonal entry. If that entry is zero, the division fails. If
+it is very small, it amplifies rounding errors. Partial pivoting swaps the current row with
+the row below that has the largest absolute value in that column:
 
 ```python
 def partial_pivot(self, i):
@@ -414,12 +415,12 @@ def partial_pivot(self, i):
         self.force[[i, max_row]] = self.force[[max_row, i]]
 ```
 
-Reordering equations does not change the solution.
+Reordering the equations does not change the solution.
 
 #### Back substitution
 
-Solves from the bottom up. The last equation has one unknown. Each equation above has
-one more, resolved using the already-computed values below:
+Back substitution solves from the bottom up. The last equation has one unknown. Each
+equation above it has one more, which is found from the values already calculated:
 
 ```python
 def back_subtract(self):
@@ -437,15 +438,15 @@ displacement_solution = np.linalg.solve(
 )
 ```
 
-Uses LU decomposition — faster and more numerically stable for large systems, but
-fundamentally the same approach: factor and back-substitute. It is the **reduced** matrix
-that is passed; the full `[K]` is singular.
+This uses LU decomposition, which is faster and more numerically stable for large
+systems. It works in the same way: factorise, then back-substitute. It is given the
+reduced matrix, because the full `[K]` is singular.
 
 ### Reassembling the full vector
 
-Computed displacements are written back into the full displacement vector at the free DOF
-positions. Constrained DOFs keep their prescribed values. For displacement-driven models
-a sign correction is applied because the force vector was computed as `[K]{u_c}`:
+FEsolver writes the calculated displacements back into the full displacement vector at the
+free DOFs. Constrained DOFs keep their prescribed values. In a displacement-driven model,
+FEsolver applies a sign correction, because it calculated the force vector as `[K]{u_c}`:
 
 ```python
 def apply_sign_correction(self, displacements):
@@ -466,12 +467,13 @@ for index, displacement in displacements.items():
 
 ## 8. Stresses
 
-With displacements known, stresses are recovered for each element in three stages.
+Once the displacements are known, FEsolver calculates the stresses in each element in 3
+stages.
 
 ### In-plane stresses
 
-For each element, the six nodal displacements are extracted and stresses computed by
-chaining `[B]` and `[D]`:
+For each element, FEsolver takes the 6 nodal displacements and calculates the stresses
+using `[B]` and `[D]`:
 
 ```python
 for node in node_list:
@@ -481,25 +483,25 @@ for node in node_list:
 normal_stress = np.matmul(np.matmul(D, B), u)
 ```
 
-This gives three components per element:
+This gives 3 components for each element:
 
-- **σxx** — normal stress in x. Positive = tension, negative = compression.
-- **σyy** — normal stress in y.
-- **τxy** — shear stress.
+- σxx, normal stress in x, where positive is tension and negative is compression
+- σyy, normal stress in y
+- τxy, shear stress
 
-All three are uniform within the element (constant strain).
+All 3 are uniform within the element, because the strain is constant.
 
 ### Principal stresses
 
-σxx, σyy, and τxy depend on the coordinate system. **Principal stresses** are
-coordinate-independent — they are the maximum and minimum normal stresses at any
-orientation, found at the angle where shear is zero.
+σxx, σyy and τxy depend on the coordinate system. Principal stresses do not. They are the
+maximum and minimum normal stresses at any orientation, and act at the angle where the
+shear stress is zero.
 
-The solver computes σ₁, σ₂, and the principal angle θ, then decomposes into x and y
+The solver calculates σ₁, σ₂ and the principal angle θ, then splits them into x and y
 components for plotting.
 
-The principal angle calculation divides by `σxx - σyy`, which is zero under equal
-biaxial stress. The solver uses `atan2` to handle this:
+The principal angle calculation divides by `σxx - σyy`, which is zero under equal biaxial
+stress. The solver uses `atan2` to handle this:
 
 ```python
 angle = -0.5 * m.atan2(2 * Sxy, Sx - Sy)
@@ -507,39 +509,46 @@ opp = m.sin(angle) * s1
 adj = m.cos(angle) * s1
 ```
 
-> **The maths.**
+> The maths:
 > ```
 > σ₁,₂ = (σxx + σyy)/2 ± √(((σxx - σyy)/2)² + τxy²)
-> θ = -½ arctan(2τxy / (σxx - σyy))
+> θ = ½ arctan(2τxy / (σxx - σyy))
 > ```
+
+> Known limitation: the code above does not match this formula yet. It uses `-0.5` instead
+> of `0.5`, which mirrors the angle about the x-axis whenever τxy is not zero. It also
+> swaps sin and cos when it builds the plot vector, so the principal stress vector plot is
+> 90° out. The magnitudes `s_max`, `s_min` and `s_shear` are correct. See item 26 in
+> [todo.md](todo.md).
 
 ### Von Mises stress
 
-Collapses the full stress state into a single number for yield checking. If σ_vm reaches
-the material's yield strength, yielding begins. Standard for ductile materials.
+Von Mises stress combines the full stress state into one number, for checking against
+yield. Yielding starts when σ_vm reaches the material's yield strength. It is the standard
+check for ductile materials.
 
 ```python
 mises = m.sqrt(sigma_1**2 - sigma_1 * sigma_2 + sigma_2**2 + 3 * sigma_12**2)
 ```
 
-The formula includes all three in-plane components — including shear — without requiring
-a coordinate transformation.
+The formula uses all 3 in-plane components, including shear, so no coordinate
+transformation is needed.
 
-> **The maths.**
+> The maths:
 > ```
 > σ_vm = √(σxx² - σxx·σyy + σyy² + 3τxy²)
 > ```
 
 ### Stress accuracy
 
-Stress is constant within each S3 element, so there are **discontinuities** at element
-boundaries. Adjacent elements report different stresses at their shared edge.
+Stress is constant within each S3 element, so it jumps at element boundaries. Adjacent
+elements report different stresses at their shared edge.
 
-The size of these jumps is a rough indicator of mesh convergence — small jumps mean the
-mesh is adequate; large jumps (especially near geometric features) mean it needs
+The size of these jumps is a rough measure of mesh convergence. Small jumps suggest the
+mesh is fine enough. Large jumps, especially near geometric features, suggest it needs
 refining.
 
-FEsolver reports raw element values without nodal averaging.
+FEsolver reports the raw element values, without nodal averaging.
 
 ---
 
@@ -557,6 +566,5 @@ FEsolver reports raw element values without nodal averaging.
 | Principal stress | Coordinate-independent max/min stresses | `compute_principal_stress()` |
 | Von Mises | Single yield-check scalar per element | `compute_mises_stress()` |
 
-Geometry and material in at the top, displacements and stresses out at the bottom. Each
-function in `solver.py` maps to one row. For a worked numerical example, see
-[worked_example.md](worked_example.md).
+Each row matches a function in `solver.py`. [worked_example.md](worked_example.md) works
+through a numerical example.

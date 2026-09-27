@@ -26,10 +26,10 @@ theme:
 
 nav:
   - Home: index.md
-  - Theory and Process: theory.md
-  - Worked Example: worked_example.md
+  - Theory and process: theory.md
+  - Worked example: worked_example.md
   - Keywords: keywords.md
-  - Data Structures: data_structures.md
+  - Data structures: data_structures.md
 
 markdown_extensions:
   - admonition
